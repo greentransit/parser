@@ -1,0 +1,40 @@
+package org.greentransit.parser.gtfs.data;
+
+/**
+ * GTFS route, as defined at
+ * https://developers.google.com/transit/gtfs/reference#routes_fields
+ * 
+ * @author Mathieu Méa
+ */
+public class GRoute {
+	public static final String FILENAME = "routes.txt";
+
+	public static final String ROUTE_ID = "route_id";
+	public String route_id;
+	public static final String ROUTE_SHORT_NAME = "route_short_name";
+	public String route_short_name;
+	public static final String ROUTE_LONG_NAME = "route_long_name";
+	public String route_long_name;
+	public static final String ROUTE_TYPE = "route_type";
+	public String route_type;
+
+	public static final String AGENCY_ID = "agency_id";
+	public String agency_id;
+	public static final String ROUTE_DESC = "route_desc";
+	public String route_desc;
+	public static final String ROUTE_URL = "route_url";
+	public String route_url;
+	public static final String ROUTE_COLOR = "route_color";
+	public String route_color;
+	public static final String ROUTE_TEXT_COLOR = "route_text_color";
+	public String route_text_color;
+
+	/** Creates a Route with its required fields. */
+	public GRoute(String route_id, String route_short_name, String route_long_name, String route_type) {
+		this.route_id = route_id;
+		this.route_short_name = route_short_name;
+		this.route_long_name = route_long_name;
+		this.route_type = route_type;
+	}
+	
+}
