@@ -10,18 +10,22 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
+import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GSpec;
 import org.greentransit.parser.gtfs.data.GStop;
+import org.greentransit.parser.gtfs.data.GStopTime;
 import org.greentransit.parser.gtfs.data.GTrip;
 import org.greentransit.parser.gtfs.data.GTripStop;
 import org.greentransit.parser.my.data.MRoute;
+import org.greentransit.parser.my.data.MSchedule;
+import org.greentransit.parser.my.data.MServiceDate;
 import org.greentransit.parser.my.data.MSpec;
 import org.greentransit.parser.my.data.MStop;
 import org.greentransit.parser.my.data.MTrip;
 import org.greentransit.parser.my.data.MTripStop;
 
-public class GenerateMyObjectsTask implements Callable<MSpec> {
+public class GenerateMObjectsTask implements Callable<MSpec> {
 
 	private GAgencyTools agencyTools;
 	private int routeId;
@@ -29,7 +33,7 @@ public class GenerateMyObjectsTask implements Callable<MSpec> {
 	private Map<Integer, MStop> stops;
 	private Map<String, GStop> gstops;
 
-	public GenerateMyObjectsTask(GAgencyTools agencyTools, int routeId, GSpec gtfs, Map<String, GStop> gstops, Map<Integer, MStop> stops) {
+	public GenerateMObjectsTask(GAgencyTools agencyTools, int routeId, GSpec gtfs, Map<String, GStop> gstops, Map<Integer, MStop> stops) {
 		this.agencyTools = agencyTools;
 		this.routeId = routeId;
 		this.gtfs = gtfs;
@@ -41,11 +45,13 @@ public class GenerateMyObjectsTask implements Callable<MSpec> {
 	// public void run() {
 	public MSpec call() {
 		System.out.println(this.routeId + ": processing... ");
-
+		HashMap<String, MServiceDate> mServiceDates = new HashMap<String, MServiceDate>();
+		HashMap<String, MSchedule> mSchedules = new HashMap<String, MSchedule>();
 		Map<Integer, MRoute> mRoutes = new HashMap<Integer, MRoute>();
 		Map<Integer, MTrip> mTrips = new HashMap<Integer, MTrip>();
 		Map<String, MTripStop> allMTripStops = new HashMap<String, MTripStop>();
 		Set<Integer> tripStopIds = new HashSet<Integer>(); // the list of stop IDs used by trips
+		Set<String> serviceIds = new HashSet<String>(); 
 		for (GRoute gRoute : gtfs.routes.values()) {
 			MRoute mRoute = new MRoute(agencyTools.getRouteId(gRoute), agencyTools.getRouteShortName(gRoute), agencyTools.getRouteLongName(gRoute)/* , gRoute.route_type */);
 			mRoute.color = agencyTools.getRouteColor(gRoute);
@@ -68,20 +74,20 @@ public class GenerateMyObjectsTask implements Callable<MSpec> {
 					System.out.println("Different trip " + mTrip.getId() + " already in list (" + mTrip.toString() + " != " + mTrips.get(mTrip.getId()).toString() + ")");
 					System.exit(-1);
 				}
-				Integer mTripId = mTrip.getId();// // agencyTools.getTripId(gTrip);
+				Integer mTripId = mTrip.getId();// agencyTools.getTripId(gTrip);
 				// find route trip stops
 				Map<String, MTripStop> mTripStops = new HashMap<String, MTripStop>();
 				for (GTripStop gTripStop : gtfs.tripStops.values()) {
 					if (!gTripStop.trip_id.equals(gTrip.trip_id)) {
 						continue;
 					}
-					int stopId = gstops.containsKey(gTripStop.stop_id.trim()) ? agencyTools.getStopId(gstops.get(gTripStop.stop_id.trim())) : 0;
-					if (stopId == 0) {
+					int mStopId = gstops.containsKey(gTripStop.stop_id.trim()) ? agencyTools.getStopId(gstops.get(gTripStop.stop_id.trim())) : 0;
+					if (mStopId == 0) {
 						System.out.println("Can't found gtfs stop id '" + gTripStop.stop_id + "' from trip ID '" + gTripStop.trip_id + "' (" + gTrip.trip_id
 								+ ")");
 						continue; // System.exit(-1);
 					}
-					MTripStop mTripStop = new MTripStop(mTripId, mTrip.getIdString(), stopId, gTripStop.stop_sequence/*, MDropOffType.parse(gTripStop.drop_off_type.id),
+					MTripStop mTripStop = new MTripStop(mTripId, mTrip.getIdString(), mStopId, gTripStop.stop_sequence/*, MDropOffType.parse(gTripStop.drop_off_type.id),
 							MPickupType.parse(gTripStop.pickup_type.id)*/);
 					if (mTripStops.containsKey(mTripStop.getUID()) && !mTripStops.get(mTripStop.getUID()).equals(mTripStop)) {
 						System.out.println("Different trip stop " + mTripStop.getUID() + " already in list(" + mTripStop.toString() + " != "
@@ -100,6 +106,19 @@ public class GenerateMyObjectsTask implements Callable<MSpec> {
 					}
 					mTripStops.put(mTripStop.getUID(), mTripStop);
 					// myTripStops.put(mTripStop.getUID(), mTripStop);
+					
+					for (GStopTime gStopTime : gtfs.stopTimes) {
+						if (!gStopTime.trip_id.equals(gTripStop.trip_id) || !gStopTime.stop_id.equals(gTripStop.stop_id)) {
+							continue;
+						}
+						MSchedule mSchedule = new MSchedule(gTrip.service_id, mTripId, mStopId, agencyTools.getDepartureTime(gStopTime));
+						if (mSchedules.containsKey(mSchedule.getUID()) && !mSchedules.get(mSchedule.getUID()).equals(mSchedule)) {
+							System.out.println("Different schedule " + mSchedule.getUID() + " already in list(" + mSchedule.toString() + " != " + mSchedules.get(mSchedule.getUID()).toString() + ")!");
+							System.exit(-1);
+						}
+						mSchedules.put(mSchedule.getUID(), mSchedule);
+					}
+					serviceIds.add(gTrip.service_id);
 				}
 				List<MTripStop> mTripStopsList = new ArrayList<MTripStop>(mTripStops.values());
 				Collections.sort(mTripStopsList);
@@ -134,6 +153,13 @@ public class GenerateMyObjectsTask implements Callable<MSpec> {
 			}
 			mRoutes.put(mRoute.id, mRoute);
 		}
+		// SERVICE DATES
+		for (GCalendarDate gCalendarDate : gtfs.calendarDates.values()) {
+			if (!serviceIds.contains(gCalendarDate.service_id)) {
+				continue;
+			}
+			mServiceDates.put(gCalendarDate.date, new MServiceDate(gCalendarDate.service_id, gCalendarDate.date));
+		}
 		// // remove not used stops
 		// int removedStopsCount = 0;
 		// for (Iterator<Map.Entry<Integer, MyStop>> it = myStops.entrySet().iterator(); it.hasNext();) {
@@ -144,18 +170,20 @@ public class GenerateMyObjectsTask implements Callable<MSpec> {
 		// }
 		// System.out.println("Removed " + removedStopsCount + " useless stops.");
 		// put in sorter list
-		List<MStop> myStopsList = null; // new ArrayList<MyStop>(myStops.values());
+		List<MStop> mStopsList = null; // new ArrayList<MyStop>(myStops.values());
 		// Collections.sort(myStopsList);
-		List<MRoute> myRoutesList = new ArrayList<MRoute>(mRoutes.values());
-		Collections.sort(myRoutesList);
-		List<MTrip> myTripsList = new ArrayList<MTrip>(mTrips.values());
-		Collections.sort(myTripsList);
-		List<MTripStop> myTripStopsList = new ArrayList<MTripStop>(allMTripStops.values());
-		Collections.sort(myTripStopsList);
-
-		MSpec myrouteSpec = new MSpec(myStopsList, myRoutesList, myTripsList, myTripStopsList);
+		List<MRoute> mRoutesList = new ArrayList<MRoute>(mRoutes.values());
+		Collections.sort(mRoutesList);
+		List<MTrip> mTripsList = new ArrayList<MTrip>(mTrips.values());
+		Collections.sort(mTripsList);
+		List<MTripStop> mTripStopsList = new ArrayList<MTripStop>(allMTripStops.values());
+		Collections.sort(mTripStopsList);
+		List<MServiceDate> mServiceDatesList = new ArrayList<MServiceDate>(mServiceDates.values());
+		Collections.sort(mServiceDatesList);
+		List<MSchedule> mSchedulesList = new ArrayList<MSchedule>(mSchedules.values());
+		Collections.sort(mSchedulesList);
+		MSpec myrouteSpec = new MSpec(mStopsList, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, mSchedulesList);
 		// return new MySpec(myStopsList, myRoutesList, myTripsList, myTripStopsList);
-
 		System.out.println(this.routeId + ": processing... DONE");
 		return myrouteSpec;
 	}

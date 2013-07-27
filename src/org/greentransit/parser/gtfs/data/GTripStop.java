@@ -33,6 +33,15 @@ public class GTripStop {
 //		this.pickup_type = pickup_type;
 //		this.drop_off_type = drop_off_type;
 	}
+	
+	@Override
+	public String toString() {
+		return new StringBuilder() //
+				.append('\'').append(trip_id).append('\'').append(',') //
+				.append('\'').append(stop_id).append('\'').append(',') //
+				.append('\'').append(stop_sequence).append('\'').append(',') //
+				.toString();
+	}
 
 //	/** Creates a Trip Stop with its required fields. */
 //	public GTripStop(String trip_id, String stop_id, int stop_sequence) {

@@ -1,8 +1,7 @@
 package org.greentransit.parser.gtfs.data;
 
 /**
- * GTFS route, as defined at
- * https://developers.google.com/transit/gtfs/reference#routes_fields
+ * GTFS route, as defined at https://developers.google.com/transit/gtfs/reference#routes_fields
  * 
  * @author Mathieu Méa
  */
@@ -36,5 +35,20 @@ public class GRoute {
 		this.route_long_name = route_long_name;
 		this.route_type = route_type;
 	}
-	
+
+	@Override
+	public String toString() {
+		return new StringBuilder() //
+				.append('\'').append(route_id).append('\'').append(',') //
+				.append('\'').append(route_short_name).append('\'').append(',') //
+				.append('\'').append(route_long_name).append('\'').append(',') //
+				.append('\'').append(route_type).append('\'').append(',') //
+				.append('\'').append(agency_id).append('\'').append(',') //
+				.append('\'').append(route_desc).append('\'').append(',') //
+				.append('\'').append(route_url).append('\'').append(',') //
+				.append('\'').append(route_color).append('\'').append(',') //
+				.append('\'').append(route_text_color).append('\'') //
+				.toString();
+	}
+
 }

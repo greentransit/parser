@@ -42,6 +42,23 @@ public class GStop {
 		this.stop_lon = stop_lon;
 	}
 	
+	@Override
+	public String toString() {
+		return new StringBuilder() //
+				.append('\'').append(stop_id).append('\'').append(',') //
+				.append('\'').append(stop_name).append('\'').append(',') //
+				.append('\'').append(stop_lat).append('\'').append(',') //
+				.append('\'').append(stop_lon).append('\'').append(',') //
+				.append('\'').append(stop_code).append('\'').append(',') //
+				.append('\'').append(stop_desc).append('\'').append(',') //
+				.append('\'').append(zone_id).append('\'').append(',') //
+				.append('\'').append(stop_url).append('\'').append(',') //
+				.append('\'').append(location_type).append('\'').append(',') //
+				.append('\'').append(parent_station).append('\'').append(',') //
+				.append('\'').append(stop_timezone).append('\'') //
+				.toString();
+	}
+	
 //	public GStop setStop_code(String stop_code) {
 //		this.stop_code = stop_code;
 //		return this;

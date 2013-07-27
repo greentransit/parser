@@ -6,9 +6,11 @@ import java.util.Map;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
 import org.greentransit.parser.gtfs.GReader;
+import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GSpec;
 import org.greentransit.parser.gtfs.data.GStop;
+import org.greentransit.parser.gtfs.data.GStopTime;
 import org.greentransit.parser.gtfs.data.GTrip;
 import org.greentransit.parser.my.MGenerator;
 import org.greentransit.parser.my.data.MDirectionType;
@@ -21,9 +23,10 @@ public class STMBus implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null; // "97"; //
 	public static final String ROUTE_TYPE_FILTER = "3"; // bus only
-	public static final String SERVICE_ID_FILTER = "13J"; // TODO use calendar
+	public static final String SERVICE_ID_FILTER = "13U"; //"13U"; // TODO use calendar
 	public static final String STOP_ID_FILTER = null;
 	public static final int THREAD_POOL_SIZE = 4;
+	public static final List<String> EXCLUDED_ROUTE_IDS = Arrays.asList(new String[] { "809" });
 
 	public static void main(String[] args) {
 		new STMBus().start(args);
@@ -34,10 +37,11 @@ public class STMBus implements GAgencyTools {
 		long start = System.currentTimeMillis();
 		// GTFS parsing
 		GSpec gtfs = GReader.readGtfsZipFile(args[0], this);
+		gtfs.services = GReader.extractServices(gtfs);
 		gtfs.tripStops = GReader.extractTripStops(gtfs);
 		Map<Integer, GSpec> gtfsByMRouteId = GReader.splitByRouteId(gtfs, this);
 		// Objects generation
-		MSpec mSpec = MGenerator.generateMySpec(gtfsByMRouteId, gtfs.stops, this);
+		MSpec mSpec = MGenerator.generateMSpec(gtfsByMRouteId, gtfs.stops, this);
 		// Dump to files
 		MGenerator.dumpFiles(mSpec, args[1], args[2]);
 
@@ -54,7 +58,7 @@ public class STMBus implements GAgencyTools {
 	public int getRouteId(GRoute gRoute) {
 		return Integer.valueOf(gRoute.route_short_name);
 	}
-	
+
 	@Override
 	public String getRouteShortName(GRoute gRoute) {
 		return gRoute.route_short_name;
@@ -68,7 +72,8 @@ public class STMBus implements GAgencyTools {
 		result = result.replace("(nuit)", "");
 		// result = result.replace("/ ", "/");
 		// result = result.replace(" /", "/");
-		result = result.replace("/", " / "); // double white-spaces removed later
+		result = result.replace("/", " / "); // double white-spaces removed
+											 // later
 		return MSpec.cleanLabel(result);
 	}
 
@@ -138,12 +143,19 @@ public class STMBus implements GAgencyTools {
 		if (ROUTE_ID_FILTER != null && !gRoute.route_id.startsWith(ROUTE_ID_FILTER)) {
 			return true;
 		}
+		if (EXCLUDED_ROUTE_IDS != null && EXCLUDED_ROUTE_IDS.contains(gRoute.route_id)) {
+			return true;
+		}
 		return false;
 	}
 
 	// @Override
 	public int getTripId(GTrip gTrip) {
-		return Integer.valueOf(/* StringUtils.leftPad( */gTrip.route_id/* , 4, "0") */+ getDirection(gTrip).intValue());
+		return Integer.valueOf(/* StringUtils.leftPad( */gTrip.route_id/*
+																	    * , 4,
+																	    * "0")
+																	    */
+				+ getDirection(gTrip).intValue());
 	}
 
 	public String getTripIdString(String routeId, String directionId) {
@@ -151,10 +163,15 @@ public class STMBus implements GAgencyTools {
 	}
 
 	@Override
-	public void setTripHeadsign(MTrip mTrip, GTrip gTrip/* , Collection<MTripStop> mTripStops */) {
+	public void setTripHeadsign(MTrip mTrip, GTrip gTrip/*
+														 * ,
+														 * Collection<MTripStop>
+														 * mTripStops
+														 */) {
 		// mTrip.headsignType = MyTrip.HEADSIGN_TYPE_DIRECTION;
 		// mTrip.headsignString = getDirection(gTrip);
-		// mTripStops could be use in last resort to enter the last stop ID using => getLastStopId(mTripStops)
+		// mTripStops could be use in last resort to enter the last stop ID
+		// using => getLastStopId(mTripStops)
 		mTrip.setHeadsignDirection(getDirection(gTrip));
 	}
 
@@ -165,16 +182,16 @@ public class STMBus implements GAgencyTools {
 
 	// from http://m.stm.info/bus/arrets/487/W?showAll=true
 	private static final List<String> MERGE_BEFORE = Arrays.asList(new String[] { "11-W,51426,51429", "11-E,51427,53833", "33-N,53436,54311",
-			"46-W,51576,51577", "48-E,54138,55235", "52-E,50671,50892", "68-W,58256,58317", "70-W,59631,60560", "103-W,54161,56318", "115-W,56017,56019",
-			"125-W,53007,53016", "139-S,55068,61274", "146-E,53827,54093", "146-W,53827,54093", "166-S,51427,51429", "168-N,56661,60675", "186-W,60550,61227",
-			"188-W,54786,54838", "204-W,57505,57568", "204-E,57505,57568", "213-W,55372,60701", "401-N,58088,58106", "409-N,57931,57947", "432-S,53102,54063",
-			"439-S,55327,59374", "440-W,55228,55253", "448-E,52266,59312", "448-W,52264,60434", "449-S,54244,61273", "470-W,58249,61256", "470-E,58286,61257",
-			"487-W,53425,53716" });
+			"46-W,51576,51577", "48-E,54138,55235", "52-E,50671,50892", "68-W,58256,58317", "68-E,58313,58329", "70-W,59631,60560", "103-W,54161,56318",
+			"115-W,56017,56019", "125-W,53007,53016", "139-S,55068,61274", "146-E,53827,54093", "146-W,53827,54093", "166-S,51427,51429", "168-N,56661,60675",
+			"186-W,60550,61227", "188-W,54786,54838", "204-W,57505,57568", "204-E,57505,57568", "213-W,55372,60701", "401-N,58088,58106", "409-N,57931,57947",
+			"432-S,53102,54063", "439-S,55327,59374", "439-S,55325,61274", "439-N,58667,61274", "440-W,55228,55253", "448-W,52264,60434", "449-S,54244,61273",
+			"470-W,58249,61256", "470-E,58286,61257", "470-E,58298,61312", "470-E,60414,61254", "487-W,53425,53716" });
 	private static final List<String> MERGE_AFTER_ = Arrays.asList(new String[] { "33-S,53392,53436", "34-E,53065,54325", "46-W,51577,51721",
-			"48-W,55260,55313", "52-W,50787,54391", "70-E,59631,60577", "115-E,56013,56020", "115-E,54195,54262", "115-W,54195,54262", "131-N,54952,60588",
-			"188-E,54789,54838", "201-N,60415,60889", "201-S,57797,60888", "211-E,54181,54267", "213-E,58086,60701", "401-S,58093,58098", "401-N,58106,58225",
-			"409-S,57933,57945", "411-E,54181,54304", "432-N,53102,60735", "440-E,55066,55266", "449-N,53224,61273", "449-N,54743,60337", "460-W,55839,55843",
-			"460-W,51524,55014", "460-W,51538,51539", "460-E,51541,55016", "487-E,53426,53487" });
+			"48-W,55260,55313", "52-W,50787,54391", "68-W,58314,58329", "70-E,59631,60577", "115-E,56013,56020", "115-E,54195,54262", "115-W,54195,54262",
+			"131-N,54952,60588", "188-E,54789,54838", "201-N,60415,60889", "201-S,57797,60888", "211-E,54181,54267", "213-E,58086,60701", "401-S,58093,58098",
+			"401-N,58106,58225", "409-S,57933,57945", "411-E,54181,54304", "432-N,53102,60735", "440-E,55066,55266", "448-E,59312,60236", "449-N,53224,61273",
+			"449-N,54743,60337", "460-W,55839,55843", "460-W,51524,55014", "460-W,51538,51539", "460-E,51541,55016", "487-E,53426,53487" });
 
 	// some bus lines have to be merged manually like 33-N
 	@Override
@@ -238,12 +255,21 @@ public class STMBus implements GAgencyTools {
 		}
 		return false;
 	}
+	
+	@Override
+	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
+		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
+			return true;
+		}
+		return false;
+	}
 
 	public static final String PLACE_CHAR_DE = "de ";
 	public static final int PLACE_CHAR_DE_LENGTH = PLACE_CHAR_DE.length();
 
 	// public static final String PLACE_CHAR_DE_LA = "de la ";
-	// public static final int PLACE_CHAR_DE_LA_LENGTH = PLACE_CHAR_DE_LA.length();
+	// public static final int PLACE_CHAR_DE_LA_LENGTH =
+	// PLACE_CHAR_DE_LA.length();
 
 	public static final String PLACE_CHAR_DES = "des ";
 	public static final int PLACE_CHAR_DES_LENGTH = PLACE_CHAR_DES.length();
@@ -264,7 +290,8 @@ public class STMBus implements GAgencyTools {
 
 	public static final String PLACE_CHAR_IN_DE = PLACE_CHAR_IN + PLACE_CHAR_DE;
 
-	// public static final String PLACE_CHAR_IN_DE_LA = PLACE_CHAR_IN + PLACE_CHAR_DE_LA;
+	// public static final String PLACE_CHAR_IN_DE_LA = PLACE_CHAR_IN +
+	// PLACE_CHAR_DE_LA;
 
 	public static final String PLACE_CHAR_IN_DES = PLACE_CHAR_IN + PLACE_CHAR_DES;
 
@@ -328,7 +355,8 @@ public class STMBus implements GAgencyTools {
 			result = result.replace(PLACE_CHAR_PARENTHESE_STATION_BIG, PLACE_CHAR_PARENTHESE);
 		}
 		// TODO MORE ?
-		// TODO transform Station Papineau (Dorion / Sainte-Catherine) => Dorion / Sainte-Catherine (Station Papineau) OR Dorion / Sainte-Catherine
+		// TODO transform Station Papineau (Dorion / Sainte-Catherine) => Dorion
+		// / Sainte-Catherine (Station Papineau) OR Dorion / Sainte-Catherine
 		return MSpec.cleanLabel(result);
 	}
 
@@ -348,6 +376,11 @@ public class STMBus implements GAgencyTools {
 			return true;
 		}
 		return false;
+	}
+	
+	@Override
+	public int getDepartureTime(GStopTime gStopTime) {
+		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
 
 }

@@ -38,4 +38,19 @@ public class GStopTime {
 		this.stop_id = stop_id;
 		this.stop_sequence = stop_sequence;
 	}
+	
+	@Override
+	public String toString() {
+		return new StringBuilder() //
+				.append('\'').append(trip_id).append('\'').append(',') //
+				.append('\'').append(stop_id).append('\'').append(',') //
+				.append('\'').append(stop_sequence).append('\'').append(',') //
+				.append('\'').append(arrival_time).append('\'').append(',') //
+				.append('\'').append(departure_time).append('\'').append(',') //
+				.append('\'').append(stop_headsign).append('\'').append(',') //
+				.append('\'').append(pickup_type).append('\'').append(',') //
+				.append('\'').append(drop_off_type).append('\'').append(',') //
+				.append('\'').append(shape_dist_traveled).append('\'') //
+				.toString();
+	}
 }

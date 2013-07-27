@@ -2,8 +2,10 @@ package org.greentransit.parser.gtfs;
 
 import java.util.List;
 
+import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GStop;
+import org.greentransit.parser.gtfs.data.GStopTime;
 import org.greentransit.parser.gtfs.data.GTrip;
 import org.greentransit.parser.my.data.MTrip;
 import org.greentransit.parser.my.data.MTripStop;
@@ -31,5 +33,11 @@ public interface GAgencyTools {
 	String cleanStopName(String gStopName);
 	String getStopCode(GStop gStop);
 	boolean excludeStop(GStop gStop);
+	
+	// CALENDAR DATES
+	boolean excludeCalendarDates(GCalendarDate gCalendarDates);
+
+	// SCHEDULE
+	int getDepartureTime(GStopTime gStopTime);
 
 }

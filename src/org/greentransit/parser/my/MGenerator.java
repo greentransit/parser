@@ -22,6 +22,8 @@ import org.greentransit.parser.gtfs.GAgencyTools;
 import org.greentransit.parser.gtfs.data.GSpec;
 import org.greentransit.parser.gtfs.data.GStop;
 import org.greentransit.parser.my.data.MRoute;
+import org.greentransit.parser.my.data.MSchedule;
+import org.greentransit.parser.my.data.MServiceDate;
 import org.greentransit.parser.my.data.MSpec;
 import org.greentransit.parser.my.data.MStop;
 import org.greentransit.parser.my.data.MTrip;
@@ -38,7 +40,7 @@ public class MGenerator {
 				System.out.println("Stop " + mStop.id + " already in list!");
 				System.out.println(mStop.toString());
 				System.out.println(mStops.get(mStop.id));
-//				System.exit(-1); // TODO HERE NOW what? should use calendar to only process the required bus stops?
+				// System.exit(-1); // TODO HERE NOW what? should use calendar to only process the required bus stops?
 			}
 			mStops.put(mStop.id, mStop);
 		}
@@ -46,28 +48,32 @@ public class MGenerator {
 		return mStops;
 	}
 
-	public static MSpec generateMySpec(Map<Integer, GSpec> gtfsByMRouteId, Map<String, GStop> gStops, GAgencyTools agencyTools) {
+	public static MSpec generateMSpec(Map<Integer, GSpec> gtfsByMRouteId, Map<String, GStop> gStops, GAgencyTools agencyTools) {
 		System.out.println("Generating routes, trips, trip stops & stops objects... ");
 		Map<Integer, MStop> mStops = generateMStops(gStops, agencyTools);
 		List<MRoute> mRoutes = new ArrayList<MRoute>();
 		List<MTrip> mTrips = new ArrayList<MTrip>();
 		List<MTripStop> mTripStops = new ArrayList<MTripStop>();
+		List<MSchedule> mSchedules = new ArrayList<MSchedule>();
+		List<MServiceDate> mServiceDates = new ArrayList<MServiceDate>();
 		ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(agencyTools.getThreadPoolSize());
 		List<Future<MSpec>> list = new ArrayList<Future<MSpec>>();
 		for (Entry<Integer, GSpec> rts : gtfsByMRouteId.entrySet()) {
 			// System.out.println(rts.getKey() + ": scheduled > gRoutes: " + rts.getValue().routes.size() + ", gTrips: " + rts.getValue().trips.size() +
 			// ", gTripStops: " + rts.getValue().tripStops.size());
-			Future<MSpec> submit = threadPoolExecutor.submit(new GenerateMyObjectsTask(agencyTools, rts.getKey(), rts.getValue(), gStops, mStops));
+			Future<MSpec> submit = threadPoolExecutor.submit(new GenerateMObjectsTask(agencyTools, rts.getKey(), rts.getValue(), gStops, mStops));
 			list.add(submit);
 		}
 		for (Future<MSpec> future : list) {
 			try {
-				MSpec myrouteSpec = future.get();
+				MSpec mRouteSpec = future.get();
 				// System.out.println(myrouteSpec.routes.get(0).id +
 				// ": result > routes:"+myrouteSpec.routes.size()+",trips:"+myrouteSpec.trips.size()+",tripstops:"+myrouteSpec.tripStops.size());
-				mRoutes.addAll(myrouteSpec.routes);
-				mTrips.addAll(myrouteSpec.trips);
-				mTripStops.addAll(myrouteSpec.tripStops);
+				mRoutes.addAll(mRouteSpec.routes);
+				mTrips.addAll(mRouteSpec.trips);
+				mTripStops.addAll(mRouteSpec.tripStops);
+				mSchedules.addAll(mRouteSpec.schedules);
+				mServiceDates.addAll(mRouteSpec.serviceDates);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			} catch (ExecutionException e) {
@@ -89,23 +95,69 @@ public class MGenerator {
 			}
 		}
 		System.out.println("Removed " + removedStopsCount + " useless stops.");
-		
-		List<MStop> myStopsList = new ArrayList<MStop>(mStops.values());
-		Collections.sort(myStopsList);
+
+		List<MStop> mStopsList = new ArrayList<MStop>(mStops.values());
+		Collections.sort(mStopsList);
 		Collections.sort(mRoutes);
 		Collections.sort(mTrips);
 		Collections.sort(mTripStops);
+		Collections.sort(mServiceDates);
+		Collections.sort(mSchedules);
 		System.out.println("Generating routes, trips, trip stops & stops objects... DONE");
 		System.out.printf("- Routes: %d\n", mRoutes.size());
 		System.out.printf("- Trips: %d\n", mTrips.size());
 		System.out.printf("- Trip stops: %d\n", mTripStops.size());
 		System.out.printf("- Stops: %d\n", mStops.size());
-		return new MSpec(myStopsList, mRoutes, mTrips, mTripStops);
+		System.out.printf("- Service Dates: %d\n", mServiceDates.size());
+		System.out.printf("- Schedules: %d\n", mSchedules.size());
+		return new MSpec(mStopsList, mRoutes, mTrips, mTripStops, mServiceDates, mSchedules);
 	}
 
 	public static void dumpFiles(MSpec mSpec, String dumpDir, String fileBase) {
 		File file = null;
 		BufferedWriter ow = null;
+		file = new File(dumpDir, fileBase + "service_dates");
+		file.delete(); // delete previous
+		try {
+			ow = new BufferedWriter(new FileWriter(file));
+			for (MServiceDate mServiceDate : mSpec.serviceDates) {
+				// System.out.println(mServiceDate.toString());
+				ow.write(mServiceDate.toString());
+				ow.write('\n');
+			}
+		} catch (IOException ioe) {
+			System.out.println("I/O Error while writing service dates file!");
+			ioe.printStackTrace();
+			System.exit(-1);
+		} finally {
+			if (ow != null) {
+				try {
+					ow.close();
+				} catch (IOException e) {
+				}
+			}
+		}
+		file = new File(dumpDir, fileBase + "schedules");
+		file.delete(); // delete previous
+		try {
+			ow = new BufferedWriter(new FileWriter(file));
+			for (MSchedule mSchedule : mSpec.schedules) {
+				// System.out.println(mSchedule.toString());
+				ow.write(mSchedule.toString());
+				ow.write('\n');
+			}
+		} catch (IOException ioe) {
+			System.out.println("I/O Error while writing schedule file!");
+			ioe.printStackTrace();
+			System.exit(-1);
+		} finally {
+			if (ow != null) {
+				try {
+					ow.close();
+				} catch (IOException e) {
+				}
+			}
+		}
 		file = new File(dumpDir, fileBase + "routes");
 		file.delete(); // delete previous
 		try {

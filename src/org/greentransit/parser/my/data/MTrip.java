@@ -6,7 +6,7 @@ public class MTrip implements Comparable<MTrip> {
 	public static final int HEADSIGN_TYPE_DIRECTION = 1;
 	public static final int HEADSIGN_TYPE_INBOUND = 2;
 	public static final int HEADSIGN_TYPE_STOP_ID = 3;
-	
+
 	// private int id; // 10-S
 	// public String headsign = ""; // blabla
 	// public MyDirectionType direction = MyDirectionType.NONE; // E/W/N/S
@@ -16,20 +16,21 @@ public class MTrip implements Comparable<MTrip> {
 	private String headsignValue = "";
 	private int headsignId = 0;
 	public int routeId; // 10
+
 	// private String url;
 
-	public MTrip(/*int id,*/ /* String headsign, MyDirectionType direction, MyInboundType inbound, */int routeId) {
-		//this.id = id;
+	public MTrip(/* int id, *//* String headsign, MyDirectionType direction, MyInboundType inbound, */int routeId) {
+		// this.id = id;
 		// this.headsign = headsign;
 		// this.direction = direction;
 		// this.inbound = inbound;
 		this.routeId = routeId;
 	}
-	
+
 	public int getId() {
 		return Integer.valueOf(this.routeId + "0" + this.headsignId);
 	}
-	
+
 	public String getIdString() {
 		return this.routeId + "-" + this.headsignValue;
 	}
@@ -72,10 +73,10 @@ public class MTrip implements Comparable<MTrip> {
 			return false;
 		}
 		MTrip t = (MTrip) obj;
-		//if (t.id != null && !t.id.equals(id)) {
-//		if (t.id != id) {
-//			return false;
-//		}
+		// if (t.id != null && !t.id.equals(id)) {
+		// if (t.id != id) {
+		// return false;
+		// }
 		// if (t.headsign != null && !t.headsign.equals(headsign)) {
 		// return false;
 		// }
@@ -101,7 +102,7 @@ public class MTrip implements Comparable<MTrip> {
 	@Override
 	public String toString() {
 		return new StringBuilder() //
-				/*.append('\'')*/.append(getId())/*.append('\'')*/.append(',') // ID
+				/* .append('\'') */.append(getId())/* .append('\'') */.append(',') // ID
 				.append(headsignType).append(',') // HEADSIGN TYPE
 				.append('\'').append(headsignValue).append('\'').append(',') // HEADSIGN STRING
 				.append(routeId) // ROUTE ID
@@ -115,7 +116,7 @@ public class MTrip implements Comparable<MTrip> {
 		if (routeId != otherTrip.routeId) {
 			return routeId - otherTrip.routeId;
 		}
-		return this.getIdString().compareTo(otherTrip.getIdString()); //id - otherTrip.id; //id.compareTo(otherTrip.id);
+		return this.getIdString().compareTo(otherTrip.getIdString()); // id - otherTrip.id; //id.compareTo(otherTrip.id);
 	}
 
 }

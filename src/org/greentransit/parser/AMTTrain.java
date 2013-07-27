@@ -5,9 +5,11 @@ import java.util.Map;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
 import org.greentransit.parser.gtfs.GReader;
+import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GSpec;
 import org.greentransit.parser.gtfs.data.GStop;
+import org.greentransit.parser.gtfs.data.GStopTime;
 import org.greentransit.parser.gtfs.data.GTrip;
 import org.greentransit.parser.my.MGenerator;
 import org.greentransit.parser.my.data.MInboundType;
@@ -36,7 +38,7 @@ public class AMTTrain implements GAgencyTools {
 		gtfs.tripStops = GReader.extractTripStops(gtfs);
 		Map<Integer, GSpec> gtfsByMRouteId = GReader.splitByRouteId(gtfs, this);
 		// Objects generation
-		MSpec mSpec = MGenerator.generateMySpec(gtfsByMRouteId, gtfs.stops, this);
+		MSpec mSpec = MGenerator.generateMSpec(gtfsByMRouteId, gtfs.stops, this);
 		// Dump to files
 		MGenerator.dumpFiles(mSpec, args[1], args[2]);
 		System.out.printf("Generating AMT train data... DONE in %d seconds\n", ((System.currentTimeMillis() - start) / 1000));
@@ -109,6 +111,14 @@ public class AMTTrain implements GAgencyTools {
 		}
 		return false;
 	}
+	
+	@Override
+	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
+		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
+			return true;
+		}
+		return false;
+	}
 
 	@Override
 	public String cleanStopName(String gStopName) {
@@ -156,6 +166,11 @@ public class AMTTrain implements GAgencyTools {
 	@Override
 	public int getThreadPoolSize() {
 		return THREAD_POOL_SIZE;
+	}
+	
+	@Override
+	public int getDepartureTime(GStopTime gStopTime) {
+		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
 
 }

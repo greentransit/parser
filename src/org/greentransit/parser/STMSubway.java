@@ -5,9 +5,11 @@ import java.util.Map;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
 import org.greentransit.parser.gtfs.GReader;
+import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GSpec;
 import org.greentransit.parser.gtfs.data.GStop;
+import org.greentransit.parser.gtfs.data.GStopTime;
 import org.greentransit.parser.gtfs.data.GTrip;
 import org.greentransit.parser.my.MGenerator;
 import org.greentransit.parser.my.data.MSpec;
@@ -19,7 +21,7 @@ public class STMSubway implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null; // "5"; //
 	public static final String ROUTE_TYPE_FILTER = "1"; // subway only
-	public static final String SERVICE_ID_FILTER = "13J"; // TODO use calendar
+	public static final String SERVICE_ID_FILTER = "13U"; // TODO use calendar
 	public static final String STOP_ID_FILTER = null;
 	public static final int THREAD_POOL_SIZE = 4;
 
@@ -35,7 +37,7 @@ public class STMSubway implements GAgencyTools {
 		gtfs.tripStops = GReader.extractTripStops(gtfs);
 		Map<Integer, GSpec> gtfsByMRouteId = GReader.splitByRouteId(gtfs, this);
 		// Objects generation
-		MSpec mSpec = MGenerator.generateMySpec(gtfsByMRouteId, gtfs.stops, this);
+		MSpec mSpec = MGenerator.generateMSpec(gtfsByMRouteId, gtfs.stops, this);
 		// Dump to files
 		MGenerator.dumpFiles(mSpec, args[1], args[2]);
 
@@ -172,6 +174,14 @@ public class STMSubway implements GAgencyTools {
 		}
 		return false;
 	}
+	
+	@Override
+	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
+		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
+			return true;
+		}
+		return false;
+	}
 
 	@Override
 	public int getStopId(GStop gStop) {
@@ -211,5 +221,10 @@ public class STMSubway implements GAgencyTools {
 
 	public static void mainTest(String[] args) {
 		System.out.println("'" + new STMSubway().cleanStopName("Station ABC") + "'");
+	}
+	
+	@Override
+	public int getDepartureTime(GStopTime gStopTime) {
+		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
 }

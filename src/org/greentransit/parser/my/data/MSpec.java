@@ -16,12 +16,16 @@ public class MSpec {
 	public List<MRoute> routes;
 	public List<MTrip> trips;
 	public List<MTripStop> tripStops;
+	public List<MServiceDate> serviceDates;
+	public /*HashMap<Integer,*/ List<MSchedule> schedules;
 
-	public MSpec(List<MStop> stops, List<MRoute> routes, List<MTrip> trips, List<MTripStop> tripStops) {
+	public MSpec(List<MStop> stops, List<MRoute> routes, List<MTrip> trips, List<MTripStop> tripStops, List<MServiceDate> serviceDates, /*HashMap<Integer,*/ List<MSchedule> schedules) {
 		this.stops = stops;
 		this.routes = routes;
 		this.trips = trips;
 		this.tripStops = tripStops;
+		this.serviceDates = serviceDates;
+		this.schedules = schedules;
 	}
 	
 	private static final CharSequenceTranslator ESCAPE = new LookupTranslator(new String[][] { { "\'", "\'\'" }, });
