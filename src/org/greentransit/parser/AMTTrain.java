@@ -111,7 +111,7 @@ public class AMTTrain implements GAgencyTools {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
 		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
@@ -167,10 +167,15 @@ public class AMTTrain implements GAgencyTools {
 	public int getThreadPoolSize() {
 		return THREAD_POOL_SIZE;
 	}
-	
+
 	@Override
 	public int getDepartureTime(GStopTime gStopTime) {
 		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
+	}
+
+	@Override
+	public int getCalendarDate(GCalendarDate gCalendarDate) {
+		return Integer.valueOf(gCalendarDate.date);
 	}
 
 }

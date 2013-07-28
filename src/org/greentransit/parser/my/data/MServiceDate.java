@@ -3,16 +3,17 @@ package org.greentransit.parser.my.data;
 public class MServiceDate implements Comparable<MServiceDate> {
 
 	public String serviceId;
-	public String calendarDate;
+	public int calendarDate;
 
-	public MServiceDate(String serviceId, String calendarDate) {
+	public MServiceDate(String serviceId, int calendarDate) {
 		this.serviceId = serviceId;
 		this.calendarDate = calendarDate;
 	}
 
 	@Override
 	public int compareTo(MServiceDate otherServiceDate) {
-		return calendarDate.compareTo(otherServiceDate.calendarDate);
+		// return calendarDate.compareTo(otherServiceDate.calendarDate);
+		return calendarDate - otherServiceDate.calendarDate;
 	}
 
 	@Override
@@ -21,7 +22,8 @@ public class MServiceDate implements Comparable<MServiceDate> {
 		if (ts.serviceId != null && !ts.serviceId.equals(serviceId)) {
 			return false;
 		}
-		if (ts.calendarDate != null && !ts.calendarDate.equals(calendarDate)) {
+		//if (ts.calendarDate != null && !ts.calendarDate.equals(calendarDate)) {
+		if (ts.calendarDate != 0 && ts.calendarDate != calendarDate) {
 			return false;
 		}
 		return true;
@@ -31,7 +33,7 @@ public class MServiceDate implements Comparable<MServiceDate> {
 	public String toString() {
 		return new StringBuilder() //
 				.append('\'').append(serviceId).append('\'').append(',') // service ID
-				.append('\'').append(calendarDate).append('\'').append(',') // calendar date
+				/*.append('\'')*/.append(calendarDate)/*.append('\'')*/ // calendar date
 				.toString();
 	}
 

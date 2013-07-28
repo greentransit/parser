@@ -45,7 +45,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 	// public void run() {
 	public MSpec call() {
 		System.out.println(this.routeId + ": processing... ");
-		HashMap<String, MServiceDate> mServiceDates = new HashMap<String, MServiceDate>();
+		HashMap<Integer, MServiceDate> mServiceDates = new HashMap<Integer, MServiceDate>();
 		HashMap<String, MSchedule> mSchedules = new HashMap<String, MSchedule>();
 		Map<Integer, MRoute> mRoutes = new HashMap<Integer, MRoute>();
 		Map<Integer, MTrip> mTrips = new HashMap<Integer, MTrip>();
@@ -158,7 +158,8 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 			if (!serviceIds.contains(gCalendarDate.service_id)) {
 				continue;
 			}
-			mServiceDates.put(gCalendarDate.date, new MServiceDate(gCalendarDate.service_id, gCalendarDate.date));
+			int calendarDate = agencyTools.getCalendarDate(gCalendarDate);
+			mServiceDates.put(calendarDate, new MServiceDate(gCalendarDate.service_id, calendarDate));
 		}
 		// // remove not used stops
 		// int removedStopsCount = 0;

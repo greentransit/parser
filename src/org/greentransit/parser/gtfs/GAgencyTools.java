@@ -40,4 +40,6 @@ public interface GAgencyTools {
 	// SCHEDULE
 	int getDepartureTime(GStopTime gStopTime);
 
+	int getCalendarDate(GCalendarDate gCalendarDate);
+
 }

@@ -209,5 +209,10 @@ public class STLBus implements GAgencyTools {
 	public int getDepartureTime(GStopTime gStopTime) {
 		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
+	
+	@Override
+	public int getCalendarDate(GCalendarDate gCalendarDate) {
+		return Integer.valueOf(gCalendarDate.date);
+	}
 
 }
