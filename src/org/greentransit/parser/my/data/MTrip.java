@@ -107,7 +107,6 @@ public class MTrip implements Comparable<MTrip> {
 				.append('\'').append(headsignValue).append('\'').append(',') // HEADSIGN STRING
 				.append(routeId) // ROUTE ID
 				.toString();
-		// .append(',').append('\'').append(headsign).append('\'').append(',').append('\'').append(direction).append('\'').append(',').append('\'').append(inbound).append('\'')
 	}
 
 	@Override

@@ -3,11 +3,12 @@ package org.greentransit.parser.my.data;
 public class MSchedule implements Comparable<MSchedule> {
 
 	public String serviceId;
+	// public int routeId;
 	public int tripId;
 	public int stopId;
 	public int departure;
 
-	public MSchedule(String serviceId, int tripId, int stopId, int departure) {
+	public MSchedule(String serviceId, int routeId, int tripId, int stopId, int departure) {
 		this.stopId = stopId;
 		this.tripId = tripId;
 		this.serviceId = serviceId;
@@ -16,13 +17,14 @@ public class MSchedule implements Comparable<MSchedule> {
 
 	public String getUID() {
 		// identifies a stop + trip + service (date) => departure
-		return this.serviceId + "-" + this.tripId + "-" + this.stopId + "-" + this.departure;
+		return this.serviceId + /* "-" + this.routeId + */"-" + this.tripId + "-" + this.stopId + "-" + this.departure;
 	}
 
 	@Override
 	public String toString() {
 		return new StringBuilder() //
-				.append('\'').append(serviceId).append('\'').append(',') // service ID
+				.append('\'').append(MSpec.escape(serviceId)).append('\'').append(',') // service ID
+				// no route ID, just for file split
 				/* .append('\'') */.append(tripId)/* .append('\'') */.append(',') // trip ID
 				/* .append('\'') */.append(stopId)/* .append('\'') */.append(',') // stop ID
 				/* .append('\'') */.append(departure)/* .append('\'') */// departure
@@ -35,6 +37,7 @@ public class MSchedule implements Comparable<MSchedule> {
 		if (!serviceId.equals(otherSchedule.serviceId)) {
 			return serviceId.compareTo(otherSchedule.serviceId);
 		}
+		// no route ID, just for file split
 		if (tripId != otherSchedule.tripId) {
 			return tripId - otherSchedule.tripId;
 		}
@@ -51,6 +54,7 @@ public class MSchedule implements Comparable<MSchedule> {
 		if (ts.serviceId != null && !ts.serviceId.equals(serviceId)) {
 			return false;
 		}
+		// no route ID, just for file split
 		// if (ts.tripId != null && !ts.tripId.equals(tripId)) {
 		if (ts.tripId != 0 && ts.tripId != tripId) {
 			return false;

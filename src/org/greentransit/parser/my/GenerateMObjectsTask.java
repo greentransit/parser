@@ -111,7 +111,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 						if (!gStopTime.trip_id.equals(gTripStop.trip_id) || !gStopTime.stop_id.equals(gTripStop.stop_id)) {
 							continue;
 						}
-						MSchedule mSchedule = new MSchedule(gTrip.service_id, mTripId, mStopId, agencyTools.getDepartureTime(gStopTime));
+						MSchedule mSchedule = new MSchedule(gTrip.service_id, mRoute.id, mTripId, mStopId, agencyTools.getDepartureTime(gStopTime));
 						if (mSchedules.containsKey(mSchedule.getUID()) && !mSchedules.get(mSchedule.getUID()).equals(mSchedule)) {
 							System.out.println("Different schedule " + mSchedule.getUID() + " already in list(" + mSchedule.toString() + " != " + mSchedules.get(mSchedule.getUID()).toString() + ")!");
 							System.exit(-1);
@@ -183,7 +183,9 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		Collections.sort(mServiceDatesList);
 		List<MSchedule> mSchedulesList = new ArrayList<MSchedule>(mSchedules.values());
 		Collections.sort(mSchedulesList);
-		MSpec myrouteSpec = new MSpec(mStopsList, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, mSchedulesList);
+		Map<Integer, List<MSchedule>> mScheduleMap = new HashMap<Integer, List<MSchedule>>();
+		mScheduleMap.put(routeId, mSchedulesList);
+		MSpec myrouteSpec = new MSpec(mStopsList, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, mScheduleMap);
 		// return new MySpec(myStopsList, myRoutesList, myTripsList, myTripStopsList);
 		System.out.println(this.routeId + ": processing... DONE");
 		return myrouteSpec;
@@ -211,12 +213,12 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 			MTripStop ts1 = l1.get(i1);
 			MTripStop ts2 = l2.get(i2);
 			if (isInList(nl, ts1.stopId)) {
-				System.out.println("Skipped" + ts1.toString() + " because already in the merged list (1).");
+				System.out.println("Skipped " + ts1.toString() + " because already in the merged list (1).");
 				i1++; // skip this stop because already in the merged list
 				continue;
 			}
 			if (isInList(nl, ts2.stopId)) {
-				System.out.println("Skipped" + ts1.toString() + " because already in the merged list (2).");
+				System.out.println("Skipped " + ts1.toString() + " because already in the merged list (2).");
 				i2++; // skip this stop because already in the merged list
 				continue;
 			}

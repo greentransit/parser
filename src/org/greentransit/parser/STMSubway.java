@@ -21,9 +21,9 @@ public class STMSubway implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null; // "5"; //
 	public static final String ROUTE_TYPE_FILTER = "1"; // subway only
-	public static final String SERVICE_ID_FILTER = "13U"; // TODO use calendar
+	public static final String SERVICE_ID_FILTER = "13N"; // TODO use calendar
 	public static final String STOP_ID_FILTER = null;
-	public static final int THREAD_POOL_SIZE = 4;
+	public static final int THREAD_POOL_SIZE = 1; // 4;
 
 	public static void main(String[] args) {
 		new STMSubway().start(args);
@@ -34,6 +34,7 @@ public class STMSubway implements GAgencyTools {
 		long start = System.currentTimeMillis();
 		// GTFS parsing
 		GSpec gtfs = GReader.readGtfsZipFile(args[0], this);
+		gtfs.services = GReader.extractServices(gtfs);
 		gtfs.tripStops = GReader.extractTripStops(gtfs);
 		Map<Integer, GSpec> gtfsByMRouteId = GReader.splitByRouteId(gtfs, this);
 		// Objects generation
@@ -62,7 +63,7 @@ public class STMSubway implements GAgencyTools {
 
 	@Override
 	public String getRouteLongName(GRoute gRoute) {
-		return "";// no i18n MSpec.cleanLabel(gRoute.route_long_name);
+		return MSpec.cleanLabel(gRoute.route_long_name); // French names are the names!
 	}
 
 	@Override
@@ -174,7 +175,7 @@ public class STMSubway implements GAgencyTools {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
 		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
@@ -185,12 +186,12 @@ public class STMSubway implements GAgencyTools {
 
 	@Override
 	public int getStopId(GStop gStop) {
-		return Integer.valueOf(getStopCode(gStop));
+		return Integer.valueOf(gStop.stop_id);
 	}
 
 	@Override
 	public String getStopCode(GStop gStop) {
-		return gStop.stop_id;
+		return ""; // gStop.stop_id;
 	}
 
 	// public static final String PLACE_CHAR_PARENTHESE = "(";
@@ -222,12 +223,12 @@ public class STMSubway implements GAgencyTools {
 	public static void mainTest(String[] args) {
 		System.out.println("'" + new STMSubway().cleanStopName("Station ABC") + "'");
 	}
-	
+
 	@Override
 	public int getDepartureTime(GStopTime gStopTime) {
 		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
-	
+
 	@Override
 	public int getCalendarDate(GCalendarDate gCalendarDate) {
 		return Integer.valueOf(gCalendarDate.date);

@@ -32,7 +32,7 @@ public class MServiceDate implements Comparable<MServiceDate> {
 	@Override
 	public String toString() {
 		return new StringBuilder() //
-				.append('\'').append(serviceId).append('\'').append(',') // service ID
+				.append('\'').append(MSpec.escape(serviceId)).append('\'').append(',') // service ID
 				/*.append('\'')*/.append(calendarDate)/*.append('\'')*/ // calendar date
 				.toString();
 	}

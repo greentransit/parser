@@ -3,6 +3,7 @@ package org.greentransit.parser.my;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,9 +11,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -35,7 +38,8 @@ public class MGenerator {
 		// System.out.println("Generating stops objects... ");
 		Map<Integer, MStop> mStops = new HashMap<Integer, MStop>();
 		for (GStop gStop : gStops.values()) {
-			MStop mStop = new MStop(agencyTools.getStopId(gStop), agencyTools.getStopCode(gStop), agencyTools.cleanStopName(gStop.stop_name), gStop.stop_lat, gStop.stop_lon);
+			MStop mStop = new MStop(agencyTools.getStopId(gStop), agencyTools.getStopCode(gStop), agencyTools.cleanStopName(gStop.stop_name), gStop.stop_lat,
+					gStop.stop_lon);
 			if (mStops.containsKey(mStop.id) && !mStop.equals(mStops.get(mStop.id))) {
 				System.out.println("Stop " + mStop.id + " already in list!");
 				System.out.println(mStop.toString());
@@ -54,7 +58,7 @@ public class MGenerator {
 		List<MRoute> mRoutes = new ArrayList<MRoute>();
 		List<MTrip> mTrips = new ArrayList<MTrip>();
 		List<MTripStop> mTripStops = new ArrayList<MTripStop>();
-		List<MSchedule> mSchedules = new ArrayList<MSchedule>();
+		TreeMap<Integer, List<MSchedule>> mSchedules = new TreeMap<Integer, List<MSchedule>>();
 		List<MServiceDate> mServiceDates = new ArrayList<MServiceDate>();
 		ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(agencyTools.getThreadPoolSize());
 		List<Future<MSpec>> list = new ArrayList<Future<MSpec>>();
@@ -72,7 +76,7 @@ public class MGenerator {
 				mRoutes.addAll(mRouteSpec.routes);
 				mTrips.addAll(mRouteSpec.trips);
 				mTripStops.addAll(mRouteSpec.tripStops);
-				mSchedules.addAll(mRouteSpec.schedules);
+				mSchedules.putAll(mRouteSpec.schedules);
 				mServiceDates.addAll(mRouteSpec.serviceDates);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -102,7 +106,7 @@ public class MGenerator {
 		Collections.sort(mTrips);
 		Collections.sort(mTripStops);
 		Collections.sort(mServiceDates);
-		Collections.sort(mSchedules);
+		// Collections.sort(mSchedules); TreeMap = sorted
 		System.out.println("Generating routes, trips, trip stops & stops objects... DONE");
 		System.out.printf("- Routes: %d\n", mRoutes.size());
 		System.out.printf("- Trips: %d\n", mTrips.size());
@@ -113,7 +117,8 @@ public class MGenerator {
 		return new MSpec(mStopsList, mRoutes, mTrips, mTripStops, mServiceDates, mSchedules);
 	}
 
-	public static void dumpFiles(MSpec mSpec, String dumpDir, String fileBase) {
+	public static void dumpFiles(MSpec mSpec, String dumpDir, final String fileBase) {
+		// TODO delete all files at the beginning and write data ASAP instead of keeping all in memory before here
 		File file = null;
 		BufferedWriter ow = null;
 		file = new File(dumpDir, fileBase + "service_dates");
@@ -137,24 +142,53 @@ public class MGenerator {
 				}
 			}
 		}
-		file = new File(dumpDir, fileBase + "schedules");
-		file.delete(); // delete previous
-		try {
-			ow = new BufferedWriter(new FileWriter(file));
-			for (MSchedule mSchedule : mSpec.schedules) {
-				// System.out.println(mSchedule.toString());
-				ow.write(mSchedule.toString());
-				ow.write('\n');
+		// delete all "...schedules_route_*"
+		final File[] files = new File(dumpDir).listFiles(new FilenameFilter() {
+			@Override
+			public boolean accept(final File dir, final String name) {
+				// return name.matches(fileBase + "schedules_route_*");
+				return name.startsWith(fileBase + "schedules_route_");
 			}
-		} catch (IOException ioe) {
-			System.out.println("I/O Error while writing schedule file!");
-			ioe.printStackTrace();
-			System.exit(-1);
-		} finally {
-			if (ow != null) {
+		});
+		for (final File f : files) {
+			if (!f.delete()) {
+				System.err.println("Can't remove " + f.getAbsolutePath());
+			}
+		}
+		List<String> allServiceIds = new ArrayList<String>();
+		for (MServiceDate mServiceDate : mSpec.serviceDates) {
+			allServiceIds.add(mServiceDate.serviceId);
+		}
+		for (Integer routeId : mSpec.schedules.keySet()) {
+			for (String serviceId : allServiceIds) {
+				// file = new File(dumpDir, fileBase + "schedules_route_" + routeId + "_service_" + MSpec.escape(serviceId).toLowerCase(Locale.ENGLISH));
+				// file.delete(); // delete previous
 				try {
-					ow.close();
-				} catch (IOException e) {
+					final List<MSchedule> mRouteSchedules = mSpec.schedules.get(routeId);
+					if (mRouteSchedules != null && mRouteSchedules.size() > 0) {
+						final String fileName = fileBase + "schedules_route_" + routeId + "_service_" + MSpec.escape(serviceId).toLowerCase(Locale.ENGLISH); // no upper case in Android res files!
+						file = new File(dumpDir, fileName);
+						// file.delete(); // delete previous
+						ow = new BufferedWriter(new FileWriter(file));
+						for (MSchedule mSchedule : mRouteSchedules) {
+							if (mSchedule.serviceId.equals(serviceId)) {
+								// System.out.println(mSchedule.toString());
+								ow.write(mSchedule.toString());
+								ow.write('\n');
+							}
+						}
+					}
+				} catch (IOException ioe) {
+					System.out.println("I/O Error while writing schedule file!");
+					ioe.printStackTrace();
+					System.exit(-1);
+				} finally {
+					if (ow != null) {
+						try {
+							ow.close();
+						} catch (IOException e) {
+						}
+					}
 				}
 			}
 		}

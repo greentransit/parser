@@ -75,9 +75,8 @@ public class GReader {
 	// null : ROUTE_ID /* + "," + SERVICE_ID_START_WITH */;
 
 	// TODO use calendar_dates.txt to get current day?
-	
-	
-	private static final String todayGtfs = new SimpleDateFormat("yyyyMMdd").format(new Date());
+
+	public static final String todayGtfs = new SimpleDateFormat("yyyyMMdd").format(new Date());
 
 	public static GSpec readGtfsZipFile(String gtfsFile, GAgencyTools agencyTools) {
 		System.out.printf("Reading GTFS file '%s'...\n", gtfsFile);
@@ -96,6 +95,7 @@ public class GReader {
 			Map<String, GStop> stops = null;
 			Map<String, GTrip> trips = null;
 			List<GStopTime> stopTimes = null;
+			List<HashMap<String, String>> fileLines = null;
 			for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
 				if (entry.isDirectory()) {
 					continue;
@@ -106,24 +106,25 @@ public class GReader {
 				// reader, null, null);
 				// agencies = processAgency(fileLines);
 				// } else
-				if (filename.equals(GCalendarDate.FILENAME)) {
-					List<HashMap<String, String>> fileLines = readCsv(filename, reader, null, null);
+				if (filename.equals(GCalendarDate.FILENAME)) { // CALENDAR DATES
+					fileLines = readCsv(filename, reader, null, null);
 					calendarDates = processCalendarDates(fileLines, agencyTools);
 				} else if (filename.equals(GRoute.FILENAME)) { // ROUTE
-					List<HashMap<String, String>> fileLines = readCsv(filename, reader, null, null);
+					fileLines = readCsv(filename, reader, null, null);
 					routes = processRoutes(fileLines, agencyTools);
 				} else if (filename.equals(GStop.FILENAME)) { // STOP
-					List<HashMap<String, String>> fileLines = readCsv(filename, reader, null, null);
+					fileLines = readCsv(filename, reader, null, null);
 					stops = processStops(fileLines, agencyTools);
 				} else if (filename.equals(GTrip.FILENAME)) { // TRIP
-					List<HashMap<String, String>> fileLines = readCsv(filename, reader, null, null);
+					fileLines = readCsv(filename, reader, null, null);
 					trips = processTrips(fileLines, agencyTools);
 				} else if (filename.equals(GStopTime.FILENAME)) { // STOP TIME
-					List<HashMap<String, String>> fileLines = readCsv(filename, reader, null, null);
-					stopTimes = processStopTimes(fileLines);
+					fileLines = readCsv(filename, reader, null, null);
+					stopTimes = processStopTimes(fileLines, agencyTools);
 				} else {
 					System.out.println("File not used: " + filename);
 				}
+				fileLines = null;
 			}
 			gspec = new GSpec(/* agencies, */calendarDates, stops, routes, trips, stopTimes);
 		} catch (IOException ioe) {
@@ -163,13 +164,13 @@ public class GReader {
 	/**
 	 * Helper method to read a CSV file and return the content as a list of maps.
 	 * 
-	 * @param csv
-	 *            the input CSV file content.
-	 * @return a list of maps, where each list element corresponds to a row in the CSV file. The map keys are the column names from the first line of the CSV file.
-	 * @throws IOException
-	 *             in case of failing to read the input stream.
+	 * @param csv the input CSV file content.
+	 * @return a list of maps, where each list element corresponds to a row in the CSV file. The map keys are the column names from the first line of the CSV
+	 *         file.
+	 * @throws IOException in case of failing to read the input stream.
 	 */
-	private static List<HashMap<String, String>> readCsv(String filename, BufferedReader reader, String filterStartWith, String filterContains) throws IOException {
+	private static List<HashMap<String, String>> readCsv(String filename, BufferedReader reader, String filterStartWith, String filterContains)
+			throws IOException {
 		System.out.println("Reading file '" + filename + "'...");
 		ArrayList<HashMap<String, String>> lines = new ArrayList<HashMap<String, String>>();
 
@@ -306,16 +307,14 @@ public class GReader {
 	// return routeStops;
 	// }
 
-	private static List<GStopTime> processStopTimes(List<HashMap<String, String>> lines/*
-																					    * , Map < String , Trip > trips
-																					    */) throws IOException {
+	private static List<GStopTime> processStopTimes(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
 		System.out.println("Processing stop times...");
 		List<GStopTime> stopTimes = new ArrayList<GStopTime>();
 		for (HashMap<String, String> line : lines) {
 			// if (trips.containsKey(line.get(StopTime.TRIP_ID))) {
 			try {
-				GStopTime gStopTime = new GStopTime(line.get(GStopTime.TRIP_ID), line.get(GStopTime.ARRIVAL_TIME), line.get(GStopTime.DEPARTURE_TIME), line.get(GStopTime.STOP_ID),
-						Integer.valueOf(line.get(GStopTime.STOP_SEQUENCE)));
+				GStopTime gStopTime = new GStopTime(line.get(GStopTime.TRIP_ID), line.get(GStopTime.ARRIVAL_TIME), line.get(GStopTime.DEPARTURE_TIME),
+						line.get(GStopTime.STOP_ID), Integer.valueOf(line.get(GStopTime.STOP_SEQUENCE)));
 				gStopTime.pickup_type = GPickupType.parse(line.get(GStopTime.PICKUP_TYPE));
 				gStopTime.drop_off_type = GDropOffType.parse(line.get(GStopTime.DROP_OFF_TYPE));
 				stopTimes.add(gStopTime);
@@ -339,9 +338,10 @@ public class GReader {
 				if (agencyTools.excludeCalendarDates(gCalendarDates)) {
 					continue; // ignore this service
 				}
-				if (todayGtfs.compareTo(gCalendarDates.date) > 0) {
-					continue; // skip old schedules
-				}
+				// if (todayGtfs.compareTo(gCalendarDates.date) > 0) { // TODO remove old dates?
+				// System.out.println("Skipping old schedule " + gCalendarDates.date);
+				// continue; // skip old schedules
+				// }
 				calendarDates.put(date, gCalendarDates);
 			} catch (Exception e) {
 				System.out.println("Error while processing: " + line);
@@ -353,9 +353,7 @@ public class GReader {
 		return calendarDates;
 	}
 
-	private static Map<String, GTrip> processTrips(List<HashMap<String, String>> lines, GAgencyTools agencyTools /*
-																												  * String serviceIdFilter
-																												  */) throws IOException {
+	private static Map<String, GTrip> processTrips(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
 		System.out.println("Processing trips...");
 		Map<String, GTrip> trips = new HashMap<String, GTrip>();
 		// Pattern serviceIdFilterpattern = serviceIdFilter == null ? null :
@@ -408,9 +406,7 @@ public class GReader {
 		return trips;
 	}
 
-	private static HashMap<String, GStop> processStops(List<HashMap<String, String>> lines, GAgencyTools agencyTools /*
-																													  * String stopIdFilter
-																													  */) throws IOException {
+	private static HashMap<String, GStop> processStops(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
 		System.out.println("Processing stops...");
 		HashMap<String, GStop> stops = new HashMap<String, GStop>();
 		for (Map<String, String> line : lines) {
@@ -429,9 +425,7 @@ public class GReader {
 		return stops;
 	}
 
-	private static Map<String, GRoute> processRoutes(List<HashMap<String, String>> lines, GAgencyTools agencyTools/*
-																												   * String routeIdFilter , String routeTypeFilter
-																												   */) throws IOException {
+	private static Map<String, GRoute> processRoutes(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
 		System.out.println("Processing routes...");
 		Map<String, GRoute> routes = new HashMap<String, GRoute>();
 		for (HashMap<String, String> line : lines) {
@@ -720,8 +714,8 @@ public class GReader {
 			int routeId = agencyTools.getRouteId(gRoute.getValue());
 			gRouteIdToMRouteId.put(gRoute.getValue().route_id, routeId);
 			if (!gRouteToSpec.containsKey(routeId)) {
-				gRouteToSpec.put(routeId, new GSpec(new HashMap<String, GCalendarDate>(), new HashMap<String, GStop>(), new HashMap<String, GRoute>(), new HashMap<String, GTrip>(),
-						new ArrayList<GStopTime>()));
+				gRouteToSpec.put(routeId, new GSpec(new HashMap<String, GCalendarDate>(), new HashMap<String, GStop>(), new HashMap<String, GRoute>(),
+						new HashMap<String, GTrip>(), new ArrayList<GStopTime>()));
 				gRouteToSpec.get(routeId).tripStops = new HashMap<String, GTripStop>();
 			}
 			if (gRouteToSpec.get(routeId).routes.containsKey(gRoute.getKey())) {

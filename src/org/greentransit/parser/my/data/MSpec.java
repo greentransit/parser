@@ -1,6 +1,7 @@
 package org.greentransit.parser.my.data;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.commons.lang3.text.translate.CharSequenceTranslator;
@@ -17,9 +18,10 @@ public class MSpec {
 	public List<MTrip> trips;
 	public List<MTripStop> tripStops;
 	public List<MServiceDate> serviceDates;
-	public /*HashMap<Integer,*/ List<MSchedule> schedules;
+	public Map<Integer, List<MSchedule>> schedules;
 
-	public MSpec(List<MStop> stops, List<MRoute> routes, List<MTrip> trips, List<MTripStop> tripStops, List<MServiceDate> serviceDates, /*HashMap<Integer,*/ List<MSchedule> schedules) {
+	public MSpec(List<MStop> stops, List<MRoute> routes, List<MTrip> trips, List<MTripStop> tripStops, List<MServiceDate> serviceDates,
+			Map<Integer, List<MSchedule>> schedules) {
 		this.stops = stops;
 		this.routes = routes;
 		this.trips = trips;
@@ -27,9 +29,9 @@ public class MSpec {
 		this.serviceDates = serviceDates;
 		this.schedules = schedules;
 	}
-	
-	private static final CharSequenceTranslator ESCAPE = new LookupTranslator(new String[][] { { "\'", "\'\'" }, });
-	
+
+	private static final CharSequenceTranslator ESCAPE = new LookupTranslator(new String[][] { { "\'", "\'\'" }, { "_", "" } });
+
 	public static String escape(String string) {
 		return ESCAPE.translate(string);
 	}
@@ -40,12 +42,12 @@ public class MSpec {
 		// remove double white-spaces
 		result = result.replaceAll("\\s+", " ");
 		// cLean-Up tHe caPItalIsaTIon
-		result = WordUtils.capitalize/*Fully*/(result, ' ', '-', '/', '\'');
+		result = WordUtils.capitalize/* Fully */(result, ' ', '-', '/', '\'');
 		return result.trim();
 	}
-	
+
 	public static void mainTest(String[] args) {
 		String string = "D'Iberville";
-		System.out.println(string +" : "+ escape(string));
+		System.out.println(string + " : " + escape(string));
 	}
 }

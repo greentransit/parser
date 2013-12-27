@@ -23,7 +23,7 @@ public class STMBus implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null; // "97"; //
 	public static final String ROUTE_TYPE_FILTER = "3"; // bus only
-	public static final String SERVICE_ID_FILTER = "13U"; //"13U"; // TODO use calendar
+	public static final String SERVICE_ID_FILTER = "13N"; // TODO use calendar
 	public static final String STOP_ID_FILTER = null;
 	public static final int THREAD_POOL_SIZE = 4;
 	public static final List<String> EXCLUDED_ROUTE_IDS = Arrays.asList(new String[] { "809" });
@@ -151,11 +151,7 @@ public class STMBus implements GAgencyTools {
 
 	// @Override
 	public int getTripId(GTrip gTrip) {
-		return Integer.valueOf(/* StringUtils.leftPad( */gTrip.route_id/*
-																	    * , 4,
-																	    * "0")
-																	    */
-				+ getDirection(gTrip).intValue());
+		return Integer.valueOf(gTrip.route_id + getDirection(gTrip).intValue());
 	}
 
 	public String getTripIdString(String routeId, String directionId) {
@@ -163,11 +159,7 @@ public class STMBus implements GAgencyTools {
 	}
 
 	@Override
-	public void setTripHeadsign(MTrip mTrip, GTrip gTrip/*
-														 * ,
-														 * Collection<MTripStop>
-														 * mTripStops
-														 */) {
+	public void setTripHeadsign(MTrip mTrip, GTrip gTrip) {
 		// mTrip.headsignType = MyTrip.HEADSIGN_TYPE_DIRECTION;
 		// mTrip.headsignString = getDirection(gTrip);
 		// mTripStops could be use in last resort to enter the last stop ID
@@ -190,8 +182,9 @@ public class STMBus implements GAgencyTools {
 	private static final List<String> MERGE_AFTER_ = Arrays.asList(new String[] { "33-S,53392,53436", "34-E,53065,54325", "46-W,51577,51721",
 			"48-W,55260,55313", "52-W,50787,54391", "68-W,58314,58329", "70-E,59631,60577", "115-E,56013,56020", "115-E,54195,54262", "115-W,54195,54262",
 			"131-N,54952,60588", "188-E,54789,54838", "201-N,60415,60889", "201-S,57797,60888", "211-E,54181,54267", "213-E,58086,60701", "401-S,58093,58098",
-			"401-N,58106,58225", "409-S,57933,57945", "411-E,54181,54304", "432-N,53102,60735", "440-E,55066,55266", "448-E,59312,60236", "449-N,53224,61273",
-			"449-N,54743,60337", "460-W,55839,55843", "460-W,51524,55014", "460-W,51538,51539", "460-E,51541,55016", "487-E,53426,53487" });
+			"401-N,58106,58225", "409-S,57933,57945", "411-E,54181,54304", "432-N,53102,60735", "432-N,53102,53103", "440-E,55066,55266", "448-E,59312,60236",
+			"449-N,53224,61273", "449-N,54743,60337", "449-N,52026,54743", "460-W,55839,55843", "460-W,51524,55014", "460-W,51538,51539", "460-E,51541,55016",
+			"487-E,53426,53487" });
 
 	// some bus lines have to be merged manually like 33-N
 	@Override
@@ -255,7 +248,7 @@ public class STMBus implements GAgencyTools {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
 		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
@@ -377,12 +370,12 @@ public class STMBus implements GAgencyTools {
 		}
 		return false;
 	}
-	
+
 	@Override
 	public int getDepartureTime(GStopTime gStopTime) {
 		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
-	
+
 	@Override
 	public int getCalendarDate(GCalendarDate gCalendarDate) {
 		return Integer.valueOf(gCalendarDate.date);
