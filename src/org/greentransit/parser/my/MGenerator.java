@@ -119,9 +119,12 @@ public class MGenerator {
 
 	public static void dumpFiles(MSpec mSpec, String dumpDir, final String fileBase) {
 		// TODO delete all files at the beginning and write data ASAP instead of keeping all in memory before here
+		long start = System.currentTimeMillis();
+		final File dumpDirF = new File(dumpDir);
+		System.out.println("Writing files (" + dumpDirF.toURI() + ")...");
 		File file = null;
 		BufferedWriter ow = null;
-		file = new File(dumpDir, fileBase + "service_dates");
+		file = new File(dumpDirF, fileBase + "service_dates");
 		file.delete(); // delete previous
 		try {
 			ow = new BufferedWriter(new FileWriter(file));
@@ -143,7 +146,7 @@ public class MGenerator {
 			}
 		}
 		// delete all "...schedules_route_*"
-		final File[] files = new File(dumpDir).listFiles(new FilenameFilter() {
+		final File[] files = dumpDirF.listFiles(new FilenameFilter() {
 			@Override
 			public boolean accept(final File dir, final String name) {
 				// return name.matches(fileBase + "schedules_route_*");
@@ -161,21 +164,23 @@ public class MGenerator {
 		}
 		for (Integer routeId : mSpec.schedules.keySet()) {
 			for (String serviceId : allServiceIds) {
-				// file = new File(dumpDir, fileBase + "schedules_route_" + routeId + "_service_" + MSpec.escape(serviceId).toLowerCase(Locale.ENGLISH));
-				// file.delete(); // delete previous
 				try {
 					final List<MSchedule> mRouteSchedules = mSpec.schedules.get(routeId);
 					if (mRouteSchedules != null && mRouteSchedules.size() > 0) {
-						final String fileName = fileBase + "schedules_route_" + routeId + "_service_" + MSpec.escape(serviceId).toLowerCase(Locale.ENGLISH); // no upper case in Android res files!
-						file = new File(dumpDir, fileName);
-						// file.delete(); // delete previous
+						final String fileName = fileBase + "schedules_route_" + routeId + "_service_" + MSpec.escape(serviceId).toLowerCase(Locale.ENGLISH);
+						file = new File(dumpDirF, fileName);
+						boolean empty = true;
 						ow = new BufferedWriter(new FileWriter(file));
 						for (MSchedule mSchedule : mRouteSchedules) {
 							if (mSchedule.serviceId.equals(serviceId)) {
 								// System.out.println(mSchedule.toString());
 								ow.write(mSchedule.toString());
 								ow.write('\n');
+								empty = false;
 							}
+						}
+						if (empty) {
+							file.delete();
 						}
 					}
 				} catch (IOException ioe) {
@@ -192,7 +197,7 @@ public class MGenerator {
 				}
 			}
 		}
-		file = new File(dumpDir, fileBase + "routes");
+		file = new File(dumpDirF, fileBase + "routes");
 		file.delete(); // delete previous
 		try {
 			ow = new BufferedWriter(new FileWriter(file));
@@ -213,7 +218,7 @@ public class MGenerator {
 				}
 			}
 		}
-		file = new File(dumpDir, fileBase + "trips");
+		file = new File(dumpDirF, fileBase + "trips");
 		file.delete(); // delete previous
 		try {
 			ow = new BufferedWriter(new FileWriter(file));
@@ -234,7 +239,7 @@ public class MGenerator {
 				}
 			}
 		}
-		file = new File(dumpDir, fileBase + "trip_stops");
+		file = new File(dumpDirF, fileBase + "trip_stops");
 		file.delete(); // delete previous
 		try {
 			ow = new BufferedWriter(new FileWriter(file));
@@ -254,7 +259,7 @@ public class MGenerator {
 				}
 			}
 		}
-		file = new File(dumpDir, fileBase + "stops");
+		file = new File(dumpDirF, fileBase + "stops");
 		file.delete(); // delete previous
 		try {
 			ow = new BufferedWriter(new FileWriter(file));
@@ -274,6 +279,7 @@ public class MGenerator {
 				}
 			}
 		}
+		System.out.println("Writing files (" + dumpDirF.toURI() + ")... DONE in " + ((System.currentTimeMillis() - start) / 1000) + " seconds.");
 	}
 
 	public Integer getLastStopId(List<MTripStop> tripStops) {

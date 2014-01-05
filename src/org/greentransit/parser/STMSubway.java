@@ -21,7 +21,7 @@ public class STMSubway implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null; // "5"; //
 	public static final String ROUTE_TYPE_FILTER = "1"; // subway only
-	public static final String SERVICE_ID_FILTER = "13N"; // TODO use calendar
+	public static final String SERVICE_ID_FILTER = "14J"; // TODO use calendar
 	public static final String STOP_ID_FILTER = null;
 	public static final int THREAD_POOL_SIZE = 1; // 4;
 
