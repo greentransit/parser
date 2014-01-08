@@ -729,7 +729,7 @@ public class GReader {
 			if (!gRouteIdToMRouteId.containsKey(gTrip.getValue().route_id)) {
 				// System.out.println("Trip's Route ID '"+gTrip.getValue().route_id+"' not already present!");
 				// System.exit(-1);
-				continue; // not processed now (subway line...)
+				continue; // not processed now (route not processed because filter or other type of route)
 			}
 			int routeId = gRouteIdToMRouteId.get(gTrip.getValue().route_id);
 			gTripIdToMRouteId.put(gTrip.getValue().trip_id, routeId);

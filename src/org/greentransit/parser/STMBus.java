@@ -263,7 +263,6 @@ public class STMBus implements GAgencyTools {
 	// public static final String PLACE_CHAR_DE_LA = "de la ";
 	// public static final int PLACE_CHAR_DE_LA_LENGTH =
 	// PLACE_CHAR_DE_LA.length();
-
 	public static final String PLACE_CHAR_DES = "des ";
 	public static final int PLACE_CHAR_DES_LENGTH = PLACE_CHAR_DES.length();
 
@@ -280,23 +279,23 @@ public class STMBus implements GAgencyTools {
 	public static final int PLACE_CHAR_D_LENGTH = PLACE_CHAR_D.length();
 
 	public static final String PLACE_CHAR_IN = "/ ";
-
 	public static final String PLACE_CHAR_IN_DE = PLACE_CHAR_IN + PLACE_CHAR_DE;
-
 	// public static final String PLACE_CHAR_IN_DE_LA = PLACE_CHAR_IN +
 	// PLACE_CHAR_DE_LA;
-
 	public static final String PLACE_CHAR_IN_DES = PLACE_CHAR_IN + PLACE_CHAR_DES;
-
 	public static final String PLACE_CHAR_IN_DU = PLACE_CHAR_IN + PLACE_CHAR_DU;
-
 	public static final String PLACE_CHAR_IN_LA = PLACE_CHAR_IN + PLACE_CHAR_LA;
-
 	public static final String PLACE_CHAR_IN_L = PLACE_CHAR_IN + PLACE_CHAR_L;
-
 	public static final String PLACE_CHAR_IN_D = PLACE_CHAR_IN + PLACE_CHAR_D;
 
 	public static final String PLACE_CHAR_PARENTHESE = "(";
+	public static final String PLACE_CHAR_PARENTHESE_DE = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DE;
+	public static final String PLACE_CHAR_PARENTHESE_DES = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DES;
+	public static final String PLACE_CHAR_PARENTHESE_DU = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DU;
+	public static final String PLACE_CHAR_PARENTHESE_LA = PLACE_CHAR_PARENTHESE + PLACE_CHAR_LA;
+	public static final String PLACE_CHAR_PARENTHESE_L = PLACE_CHAR_PARENTHESE + PLACE_CHAR_L;
+	public static final String PLACE_CHAR_PARENTHESE_D = PLACE_CHAR_PARENTHESE + PLACE_CHAR_D;
+	
 	public static final String PLACE_CHAR_PARENTHESE_STATION = PLACE_CHAR_PARENTHESE + "station ";
 	public static final int PLACE_CHAR_PARENTHESE_STATION_LENGTH = PLACE_CHAR_PARENTHESE_STATION.length();
 	public static final String PLACE_CHAR_PARENTHESE_STATION_BIG = PLACE_CHAR_PARENTHESE + "Station ";
@@ -339,6 +338,21 @@ public class STMBus implements GAgencyTools {
 			result = result.replace(PLACE_CHAR_IN_L, PLACE_CHAR_IN);
 		} else if (result.contains(PLACE_CHAR_IN_D)) {
 			result = result.replace(PLACE_CHAR_IN_D, PLACE_CHAR_IN);
+		}
+		
+		if (result.contains(PLACE_CHAR_PARENTHESE_DE)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_DE, PLACE_CHAR_PARENTHESE);
+		} else if (result.contains(PLACE_CHAR_PARENTHESE_DES)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_DES, PLACE_CHAR_PARENTHESE);
+		} else if (result.contains(PLACE_CHAR_PARENTHESE_DU)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_DU, PLACE_CHAR_PARENTHESE);
+		}
+		if (result.contains(PLACE_CHAR_PARENTHESE_LA)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_LA, PLACE_CHAR_PARENTHESE);
+		} else if (result.contains(PLACE_CHAR_PARENTHESE_L)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_L, PLACE_CHAR_PARENTHESE);
+		} else if (result.contains(PLACE_CHAR_PARENTHESE_D)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_D, PLACE_CHAR_PARENTHESE);
 		}
 
 		if (result.contains(PLACE_CHAR_PARENTHESE_STATION)) {

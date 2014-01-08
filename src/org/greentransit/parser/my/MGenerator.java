@@ -7,9 +7,7 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -34,27 +32,8 @@ import org.greentransit.parser.my.data.MTripStop;
 
 public class MGenerator {
 
-	private static Map<Integer, MStop> generateMStops(Map<String, GStop> gStops, GAgencyTools agencyTools) {
-		// System.out.println("Generating stops objects... ");
-		Map<Integer, MStop> mStops = new HashMap<Integer, MStop>();
-		for (GStop gStop : gStops.values()) {
-			MStop mStop = new MStop(agencyTools.getStopId(gStop), agencyTools.getStopCode(gStop), agencyTools.cleanStopName(gStop.stop_name), gStop.stop_lat,
-					gStop.stop_lon);
-			if (mStops.containsKey(mStop.id) && !mStop.equals(mStops.get(mStop.id))) {
-				System.out.println("Stop " + mStop.id + " already in list!");
-				System.out.println(mStop.toString());
-				System.out.println(mStops.get(mStop.id));
-				// System.exit(-1); // TODO HERE NOW what? should use calendar to only process the required bus stops?
-			}
-			mStops.put(mStop.id, mStop);
-		}
-		// System.out.println("Generating stops objects... DONE");
-		return mStops;
-	}
-
 	public static MSpec generateMSpec(Map<Integer, GSpec> gtfsByMRouteId, Map<String, GStop> gStops, GAgencyTools agencyTools) {
 		System.out.println("Generating routes, trips, trip stops & stops objects... ");
-		Map<Integer, MStop> mStops = generateMStops(gStops, agencyTools);
 		List<MRoute> mRoutes = new ArrayList<MRoute>();
 		List<MTrip> mTrips = new ArrayList<MTrip>();
 		List<MTripStop> mTripStops = new ArrayList<MTripStop>();
@@ -63,9 +42,13 @@ public class MGenerator {
 		ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(agencyTools.getThreadPoolSize());
 		List<Future<MSpec>> list = new ArrayList<Future<MSpec>>();
 		for (Entry<Integer, GSpec> rts : gtfsByMRouteId.entrySet()) {
+			if (rts.getValue().trips == null || rts.getValue().trips.size() == 0) {
+				System.out.println("Skip route ID " + rts.getKey() + " because no route trip.");
+				continue;
+			}
 			// System.out.println(rts.getKey() + ": scheduled > gRoutes: " + rts.getValue().routes.size() + ", gTrips: " + rts.getValue().trips.size() +
 			// ", gTripStops: " + rts.getValue().tripStops.size());
-			Future<MSpec> submit = threadPoolExecutor.submit(new GenerateMObjectsTask(agencyTools, rts.getKey(), rts.getValue(), gStops, mStops));
+			final Future<MSpec> submit = threadPoolExecutor.submit(new GenerateMObjectsTask(agencyTools, rts.getKey(), rts.getValue(), gStops/* , mStops */));
 			list.add(submit);
 		}
 		for (Future<MSpec> future : list) {
@@ -85,22 +68,35 @@ public class MGenerator {
 			}
 		}
 		threadPoolExecutor.shutdown();
-		// generate trip stops IDs
-		Set<Integer> tripStopIds = new HashSet<Integer>();
+		System.out.println("Generating stops objects... ");
+		// generate trip stops stops IDs to check stop usefulness
+		Set<Integer> tripStopStopIds = new HashSet<Integer>();
 		for (MTripStop mTripStop : mTripStops) {
-			tripStopIds.add(mTripStop.stopId);
+			tripStopStopIds.add(mTripStop.stopId);
 		}
-		// remove useless stops
-		int removedStopsCount = 0;
-		for (Iterator<Map.Entry<Integer, MStop>> it = mStops.entrySet().iterator(); it.hasNext();) {
-			if (!tripStopIds.contains(it.next().getKey())) {
-				it.remove();
-				removedStopsCount++;
-			}
-		}
-		System.out.println("Removed " + removedStopsCount + " useless stops.");
 
-		List<MStop> mStopsList = new ArrayList<MStop>(mStops.values());
+		// generate stops
+		List<MStop> mStopsList = new ArrayList<MStop>();
+		Set<Integer> mStopIds = new HashSet<Integer>();
+		int skippedStopsCount = 0;
+		for (GStop gStop : gStops.values()) {
+			MStop mStop = new MStop(agencyTools.getStopId(gStop), agencyTools.getStopCode(gStop), agencyTools.cleanStopName(gStop.stop_name), gStop.stop_lat,
+					gStop.stop_lon);
+			if (mStopIds.contains(mStop.id)) {
+				System.out.println("Stop " + mStop.id + " already in list!");
+				// System.exit(-1); // TODO what? should use calendar to only process the required bus stops?
+				continue;
+			}
+			if (!tripStopStopIds.contains(mStop.id)) {
+				skippedStopsCount++;
+				continue;
+			}
+			mStopsList.add(mStop);
+			mStopIds.add(mStop.id);
+		}
+		System.out.println("Skipped " + skippedStopsCount + " useless stops.");
+		System.out.println("Generating stops objects... DONE");
+
 		Collections.sort(mStopsList);
 		Collections.sort(mRoutes);
 		Collections.sort(mTrips);
@@ -111,7 +107,7 @@ public class MGenerator {
 		System.out.printf("- Routes: %d\n", mRoutes.size());
 		System.out.printf("- Trips: %d\n", mTrips.size());
 		System.out.printf("- Trip stops: %d\n", mTripStops.size());
-		System.out.printf("- Stops: %d\n", mStops.size());
+		System.out.printf("- Stops: %d\n", mStopsList.size());
 		System.out.printf("- Service Dates: %d\n", mServiceDates.size());
 		System.out.printf("- Schedules: %d\n", mSchedules.size());
 		return new MSpec(mStopsList, mRoutes, mTrips, mTripStops, mServiceDates, mSchedules);

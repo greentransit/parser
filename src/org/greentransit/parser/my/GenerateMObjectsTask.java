@@ -30,15 +30,13 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 	private GAgencyTools agencyTools;
 	private int routeId;
 	private GSpec gtfs;
-	private Map<Integer, MStop> stops;
 	private Map<String, GStop> gstops;
 
-	public GenerateMObjectsTask(GAgencyTools agencyTools, int routeId, GSpec gtfs, Map<String, GStop> gstops, Map<Integer, MStop> stops) {
+	public GenerateMObjectsTask(GAgencyTools agencyTools, int routeId, GSpec gtfs, Map<String, GStop> gstops) {
 		this.agencyTools = agencyTools;
 		this.routeId = routeId;
 		this.gtfs = gtfs;
 		this.gstops = gstops;
-		this.stops = stops;
 	}
 
 	@Override
@@ -99,11 +97,6 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 					// + myTripStops.get(mTripStop.getUID()).toString() + ")!");
 					// System.exit(-1);
 					// }
-					// check stop presence
-					if (!this.stops.containsKey(mTripStop.stopId)) {
-						System.out.println("Stop '" + mTripStop.stopId + "' required by trip " + mTripStop.tripIdString + " not present!");
-						System.exit(-1);
-					}
 					mTripStops.put(mTripStop.getUID(), mTripStop);
 					// myTripStops.put(mTripStop.getUID(), mTripStop);
 					
