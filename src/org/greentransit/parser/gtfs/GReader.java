@@ -276,7 +276,7 @@ public class GReader {
 				}
 				// TODO check drop off + pickup types
 			} else { // add new one
-				GTripStop gTripStop = new GTripStop(gTrip.trip_id, gStopTime.stop_id, gStopTime.stop_sequence);
+				GTripStop gTripStop = new GTripStop(gTrip.getTripId(), gStopTime.stop_id, gStopTime.stop_sequence);
 				gTripStops.put(uid, gTripStop);
 			}
 		}
@@ -726,19 +726,19 @@ public class GReader {
 		}
 		// System.out.println("gRouteToMyRouteIds: " + gRouteIdToMyRouteId.size());
 		for (Entry<String, GTrip> gTrip : gtfs.trips.entrySet()) {
-			if (!gRouteIdToMRouteId.containsKey(gTrip.getValue().route_id)) {
+			if (!gRouteIdToMRouteId.containsKey(gTrip.getValue().getRouteId())) {
 				// System.out.println("Trip's Route ID '"+gTrip.getValue().route_id+"' not already present!");
 				// System.exit(-1);
 				continue; // not processed now (route not processed because filter or other type of route)
 			}
-			int routeId = gRouteIdToMRouteId.get(gTrip.getValue().route_id);
-			gTripIdToMRouteId.put(gTrip.getValue().trip_id, routeId);
+			int routeId = gRouteIdToMRouteId.get(gTrip.getValue().getRouteId());
+			gTripIdToMRouteId.put(gTrip.getValue().getTripId(), routeId);
 			if (!gRouteToSpec.containsKey(routeId)) {
 				System.out.println("Trip's Route ID " + routeId + " not already present!");
 				System.exit(-1);
 			}
 			if (gRouteToSpec.get(routeId).trips.containsKey(gTrip.getKey())) {
-				System.out.println("Trip ID " + gTrip.getValue().trip_id + " already present!");
+				System.out.println("Trip ID " + gTrip.getValue().getTripId() + " already present!");
 				System.exit(-1);
 			}
 			gServiceIdToMRouteId.put(gTrip.getValue().service_id, routeId);

@@ -6,8 +6,9 @@ public class MTripStop implements Comparable<MTripStop> {
 
 	private int tripId;
 	public String tripIdString;
-	public int stopId;
+	private int stopId;
 	public int stopSequence;
+	private String uid;
 
 	// public MDropOffType dropOff;
 	// public MPickupType pickup;
@@ -18,6 +19,7 @@ public class MTripStop implements Comparable<MTripStop> {
 		this.tripIdString = tripIdString;
 		this.stopId = stopId;
 		this.stopSequence = stopSequence;
+		this.uid = this.tripId + "" + this.stopId;
 		// this.dropOff = dropOff;
 		// this.pickup = pickup;
 	}
@@ -32,7 +34,11 @@ public class MTripStop implements Comparable<MTripStop> {
 
 	public String getUID() {
 		// identifies a trip + stop
-		return /* tripId */this.tripId + "" + stopId;
+		return this.uid;
+	}
+
+	public int getStopId() {
+		return stopId;
 	}
 
 	@Override

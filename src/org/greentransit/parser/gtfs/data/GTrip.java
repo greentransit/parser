@@ -9,11 +9,11 @@ public class GTrip {
 	public static final String FILENAME = "trips.txt";
 
 	public static final String ROUTE_ID = "route_id";
-	public String route_id;
+	private String route_id;
 	public static final String SERVICE_ID = "service_id";
 	public String service_id;
 	public static final String TRIP_ID = "trip_id";
-	public String trip_id;
+	private String trip_id;
 
 	public static final String TRIP_HEADSIGN = "trip_headsign";
 	public String trip_headsign;
@@ -26,15 +26,27 @@ public class GTrip {
 	public static final String SHAPE_ID = "shape_id";
 	public String shape_id;
 
+	private String uid;
+
 	/** Creates a Trip with its required fields. */
 	public GTrip(String route_id, String service_id, String trip_id) {
 		this.route_id = route_id;
 		this.service_id = service_id;
 		this.trip_id = trip_id;
+
+		this.uid = this.route_id + this.trip_id;
 	}
 
 	public String getUID() {
-		return this.route_id + this.trip_id;
+		return this.uid;
+	}
+
+	public String getRouteId() {
+		return route_id;
+	}
+
+	public String getTripId() {
+		return trip_id;
 	}
 
 	@Override

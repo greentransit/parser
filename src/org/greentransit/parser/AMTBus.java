@@ -98,16 +98,6 @@ public class AMTBus implements GAgencyTools {
 		mTrip.setHeadsignInbound(MInboundType.parse(gTrip.direction_id));
 	}
 
-	@Override
-	public int mergeTrip(MTripStop ts1, MTripStop ts2, List<MTripStop> l1, List<MTripStop> l2, int i1, int i2) {
-		int result = 0;
-		// TODO?
-		System.out.println("Have to resolve: " + ts1.tripIdString + "," + ts1.stopId + "," + ts2.stopId);
-		System.out.println("l1:" + l1.toString());
-		System.out.println("l2:" + l2.toString());
-		System.exit(-1);
-		return result;
-	}
 
 	@Override
 	public boolean excludeTrip(GTrip gTrip) {

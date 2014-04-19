@@ -25,7 +25,6 @@ public interface GAgencyTools {
 	// TRIP
 	// int getTripId(GTrip gTrip);
 	void setTripHeadsign(MTrip mTrip, GTrip gTrip/*, Collection<MTripStop> mTripStops*/);
-	int mergeTrip(MTripStop ts1, MTripStop ts2, List<MTripStop> l1, List<MTripStop> l2, int i1, int i2);
 	boolean excludeTrip(GTrip gTrip);
 
 	// STOP

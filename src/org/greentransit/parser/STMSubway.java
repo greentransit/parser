@@ -92,7 +92,7 @@ public class STMSubway implements GAgencyTools {
 		// return gTrip.route_id + "-" + stationName.substring(0, 2).toUpperCase(Locale.ENGLISH);
 		// manual because fix and to group Orange line towards Henri-Bourassa & Montmorency
 		String stationName = cleanStopName(gTrip.trip_headsign);
-		switch (Integer.valueOf(gTrip.route_id)) {
+		switch (Integer.valueOf(gTrip.getRouteId())) {
 		case 1: // GREEN
 			if (stationName.equalsIgnoreCase("Angrignon")) {
 				return 101; // "1-AA";
@@ -159,14 +159,6 @@ public class STMSubway implements GAgencyTools {
 		mTrip.setHeadsignString(stationName, directionId);
 	}
 
-	@Override
-	public int mergeTrip(MTripStop ts1, MTripStop ts2, List<MTripStop> l1, List<MTripStop> l2, int i1, int i2) {
-		System.out.println("Have to resolve: " + ts1.tripIdString + "," + ts1.stopId + "," + ts2.stopId);
-		System.out.println("l1:" + l1.toString());
-		System.out.println("l2:" + l2.toString());
-		System.exit(-1);
-		return 0;
-	}
 
 	@Override
 	public boolean excludeTrip(GTrip gTrip) {

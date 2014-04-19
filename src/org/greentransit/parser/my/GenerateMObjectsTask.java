@@ -21,7 +21,6 @@ import org.greentransit.parser.my.data.MRoute;
 import org.greentransit.parser.my.data.MSchedule;
 import org.greentransit.parser.my.data.MServiceDate;
 import org.greentransit.parser.my.data.MSpec;
-import org.greentransit.parser.my.data.MStop;
 import org.greentransit.parser.my.data.MTrip;
 import org.greentransit.parser.my.data.MTripStop;
 
@@ -42,6 +41,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 	@Override
 	// public void run() {
 	public MSpec call() {
+		final long startAt = System.currentTimeMillis();
 		System.out.println(this.routeId + ": processing... ");
 		HashMap<Integer, MServiceDate> mServiceDates = new HashMap<Integer, MServiceDate>();
 		HashMap<String, MSchedule> mSchedules = new HashMap<String, MSchedule>();
@@ -49,9 +49,9 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		Map<Integer, MTrip> mTrips = new HashMap<Integer, MTrip>();
 		Map<String, MTripStop> allMTripStops = new HashMap<String, MTripStop>();
 		Set<Integer> tripStopIds = new HashSet<Integer>(); // the list of stop IDs used by trips
-		Set<String> serviceIds = new HashSet<String>(); 
+		Set<String> serviceIds = new HashSet<String>();
 		for (GRoute gRoute : gtfs.routes.values()) {
-			MRoute mRoute = new MRoute(agencyTools.getRouteId(gRoute), agencyTools.getRouteShortName(gRoute), agencyTools.getRouteLongName(gRoute)/* , gRoute.route_type */);
+			MRoute mRoute = new MRoute(agencyTools.getRouteId(gRoute), agencyTools.getRouteShortName(gRoute), agencyTools.getRouteLongName(gRoute));
 			mRoute.color = agencyTools.getRouteColor(gRoute);
 			mRoute.textColor = agencyTools.getRouteTextColor(gRoute);
 			if (mRoutes.containsKey(mRoute.id) && !mRoute.equals(mRoutes.get(mRoute.id))) {
@@ -63,30 +63,32 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 			// find route trips
 			Map<Integer, List<MTripStop>> tripIdToMTripStops = new HashMap<Integer, List<MTripStop>>();
 			for (GTrip gTrip : gtfs.trips.values()) {
-				if (!gTrip.route_id.equals(gRoute.route_id)) {
+				if (!gTrip.getRouteId().equals(gRoute.route_id)) {
 					continue;
 				}
-				MTrip mTrip = new MTrip(/*mTripId,*/ mRoute.id);
-				agencyTools.setTripHeadsign(mTrip, gTrip/*, mTripStops.values()*/);
+				MTrip mTrip = new MTrip(/* mTripId, */mRoute.id);
+				agencyTools.setTripHeadsign(mTrip, gTrip/* , mTripStops.values() */);
 				if (mTrips.containsKey(mTrip.getId()) && !mTrips.get(mTrip.getId()).equals(mTrip)) {
-					System.out.println("Different trip " + mTrip.getId() + " already in list (" + mTrip.toString() + " != " + mTrips.get(mTrip.getId()).toString() + ")");
+					System.out.println("Different trip " + mTrip.getId() + " already in list (" + mTrip.toString() + " != "
+							+ mTrips.get(mTrip.getId()).toString() + ")");
 					System.exit(-1);
 				}
 				Integer mTripId = mTrip.getId();// agencyTools.getTripId(gTrip);
 				// find route trip stops
 				Map<String, MTripStop> mTripStops = new HashMap<String, MTripStop>();
 				for (GTripStop gTripStop : gtfs.tripStops.values()) {
-					if (!gTripStop.trip_id.equals(gTrip.trip_id)) {
+					if (!gTripStop.trip_id.equals(gTrip.getTripId())) {
 						continue;
 					}
-					int mStopId = gstops.containsKey(gTripStop.stop_id.trim()) ? agencyTools.getStopId(gstops.get(gTripStop.stop_id.trim())) : 0;
+					final GStop gStop = gstops.get(gTripStop.stop_id.trim());
+					int mStopId = gStop == null ? 0 : agencyTools.getStopId(gStop);
+					this.gStopsCache.put(mStopId, gStop);
 					if (mStopId == 0) {
-						System.out.println("Can't found gtfs stop id '" + gTripStop.stop_id + "' from trip ID '" + gTripStop.trip_id + "' (" + gTrip.trip_id
-								+ ")");
+						System.out.println("Can't found gtfs stop id '" + gTripStop.stop_id + "' from trip ID '" + gTripStop.trip_id + "' ("
+								+ gTrip.getTripId() + ")");
 						continue; // System.exit(-1);
 					}
-					MTripStop mTripStop = new MTripStop(mTripId, mTrip.getIdString(), mStopId, gTripStop.stop_sequence/*, MDropOffType.parse(gTripStop.drop_off_type.id),
-							MPickupType.parse(gTripStop.pickup_type.id)*/);
+					MTripStop mTripStop = new MTripStop(mTripId, mTrip.getIdString(), mStopId, gTripStop.stop_sequence);
 					if (mTripStops.containsKey(mTripStop.getUID()) && !mTripStops.get(mTripStop.getUID()).equals(mTripStop)) {
 						System.out.println("Different trip stop " + mTripStop.getUID() + " already in list(" + mTripStop.toString() + " != "
 								+ mTripStops.get(mTripStop.getUID()).toString() + ")!");
@@ -106,7 +108,8 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 						}
 						MSchedule mSchedule = new MSchedule(gTrip.service_id, mRoute.id, mTripId, mStopId, agencyTools.getDepartureTime(gStopTime));
 						if (mSchedules.containsKey(mSchedule.getUID()) && !mSchedules.get(mSchedule.getUID()).equals(mSchedule)) {
-							System.out.println("Different schedule " + mSchedule.getUID() + " already in list(" + mSchedule.toString() + " != " + mSchedules.get(mSchedule.getUID()).toString() + ")!");
+							System.out.println("Different schedule " + mSchedule.getUID() + " already in list(" + mSchedule.toString() + " != "
+									+ mSchedules.get(mSchedule.getUID()).toString() + ")!");
 							System.exit(-1);
 						}
 						mSchedules.put(mSchedule.getUID(), mSchedule);
@@ -141,7 +144,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 						System.exit(-1);
 					}
 					allMTripStops.put(mTripStop.getUID(), mTripStop);
-					tripStopIds.add(mTripStop.stopId);
+					tripStopIds.add(mTripStop.getStopId());
 				}
 			}
 			mRoutes.put(mRoute.id, mRoute);
@@ -164,7 +167,6 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		// }
 		// System.out.println("Removed " + removedStopsCount + " useless stops.");
 		// put in sorter list
-		List<MStop> mStopsList = null; // new ArrayList<MyStop>(myStops.values());
 		// Collections.sort(myStopsList);
 		List<MRoute> mRoutesList = new ArrayList<MRoute>(mRoutes.values());
 		Collections.sort(mRoutesList);
@@ -178,9 +180,9 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		Collections.sort(mSchedulesList);
 		Map<Integer, List<MSchedule>> mScheduleMap = new HashMap<Integer, List<MSchedule>>();
 		mScheduleMap.put(routeId, mSchedulesList);
-		MSpec myrouteSpec = new MSpec(mStopsList, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, mScheduleMap);
+		MSpec myrouteSpec = new MSpec(null, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, mScheduleMap);
 		// return new MySpec(myStopsList, myRoutesList, myTripsList, myTripStopsList);
-		System.out.println(this.routeId + ": processing... DONE");
+		System.out.println(this.routeId + ": processing... DONE in " + (System.currentTimeMillis() - startAt) + " ms");
 		return myrouteSpec;
 	}
 
@@ -201,58 +203,160 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 
 	public List<MTripStop> mergeMyTripStopLists(List<MTripStop> l1, List<MTripStop> l2) {
 		List<MTripStop> nl = new ArrayList<MTripStop>();
+		Set<Integer> nlStopId = new HashSet<Integer>();
+		Set<Integer> l1StopId = new HashSet<Integer>();
+		for (MTripStop ts1 : l1) {
+			l1StopId.add(ts1.getStopId());
+		}
+		Set<Integer> l2StopId = new HashSet<Integer>();
+		for (MTripStop ts2 : l2) {
+			l2StopId.add(ts2.getStopId());
+		}
 		int i1 = 0, i2 = 0;
+		MTripStop last = null;
 		for (; i1 < l1.size() && i2 < l2.size();) {
 			MTripStop ts1 = l1.get(i1);
 			MTripStop ts2 = l2.get(i2);
-			if (isInList(nl, ts1.stopId)) {
+			if (isInList(nlStopId, ts1.getStopId())) {
 				System.out.println("Skipped " + ts1.toString() + " because already in the merged list (1).");
 				i1++; // skip this stop because already in the merged list
 				continue;
 			}
-			if (isInList(nl, ts2.stopId)) {
+			if (isInList(nlStopId, ts2.getStopId())) {
 				System.out.println("Skipped " + ts1.toString() + " because already in the merged list (2).");
 				i2++; // skip this stop because already in the merged list
 				continue;
 			}
-			if (ts1.stopId == ts2.stopId) {
+			if (ts1.getStopId() == ts2.getStopId()) {
 				// TODO merge other parameters such as drop off / pick up ...
 				nl.add(ts1);
+				nlStopId.add(ts1.getStopId());
+				last = ts1;
 				i1++;
 				i2++;
 				continue;
 			}
 			// find next match
 			// look for stop in other list
-			boolean inL1 = isInList(l1, ts2.stopId);
-			boolean inL2 = isInList(l2, ts1.stopId);
+			boolean inL1 = isInList(l1StopId, ts2.getStopId());
+			boolean inL2 = isInList(l2StopId, ts1.getStopId());
 			if (inL1 && !inL2) {
 				nl.add(ts1);
+				nlStopId.add(ts1.getStopId());
+				last = ts1;
 				i1++;
 				continue;
 			}
 			if (!inL1 && inL2) {
 				nl.add(ts2);
+				nlStopId.add(ts2.getStopId());
+				last = ts2;
 				i2++;
 				continue;
 			}
 			// MANUAL MERGE
+			// System.out.println("Have to resolve : " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId());
+			// System.out.println("l1:" + l1.toString());
+			// System.out.println("l2:" + l2.toString());
 			// } else if (inL1 && inL2) {
 			// nl.add(agencyTools.chooseTripStop(ts1, ts2, l1, l2, i1, i2));
 			// } else if (!inL1 && !inL2) {
 			// Can't randomly choose one of them because stops might be in different order than real life,
 			// "Let's not let that happen." -- Aaron S. (1986 - 2013)
-			int merge = agencyTools.mergeTrip(ts1, ts2, l1, l2, i1, i2);
-			if (merge > 0) {
+			if (last != null) {
+				boolean lastInL1 = isInList(l1StopId, last.getStopId());
+				boolean lastInL2 = isInList(l2StopId, last.getStopId());
+				if (lastInL1 && !lastInL2) {
+					System.out.println("Resolved using last " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:" + last.getStopId()
+							+ ")");
+					nl.add(ts1);
+					nlStopId.add(ts1.getStopId());
+					last = ts1;
+					i1++;
+					continue;
+				}
+				if (!lastInL1 && lastInL2) {
+					System.out.println("Resolved using last " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:" + last.getStopId()
+							+ ")");
+					nl.add(ts2);
+					nlStopId.add(ts2.getStopId());
+					last = ts2;
+					i2++;
+					continue;
+				}
+			}
+			if (last != null) {
+				final GStop lastGStop = getGStop(last);
+				final GStop ts1GStop = getGStop(ts1);
+				final GStop ts2GStop = getGStop(ts2);
+				final double lastGStopLat = Double.parseDouble(lastGStop.stop_lat);
+				final double lastGStopLon = Double.parseDouble(lastGStop.stop_lon);
+				double ts1Distance = findDistance(lastGStopLat, lastGStopLon, Double.parseDouble(ts1GStop.stop_lat), Double.parseDouble(ts1GStop.stop_lon));
+				double ts2Distance = findDistance(lastGStopLat, lastGStopLon, Double.parseDouble(ts2GStop.stop_lat), Double.parseDouble(ts2GStop.stop_lon));
+				System.out.println("Resolved using last distance " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:"
+						+ last.getStopId() + " " + ts1Distance + ", " + ts2Distance + ")");
+				if (ts1Distance < ts2Distance) {
+					nl.add(ts1);
+					nlStopId.add(ts1.getStopId());
+					last = ts1;
+					i1++;
+					continue;
+				} else {
+					nl.add(ts2);
+					nlStopId.add(ts2.getStopId());
+					last = ts2;
+					i2++;
+					continue;
+				}
+			}
+			// try to find 1rst common stop
+			MTripStop[] commonStopAndPrevious = findFirstCommonStop(l1, l2);
+			if (commonStopAndPrevious.length >= 3) {
+				final GStop commonGStop = getGStop(commonStopAndPrevious[0]);
+				final GStop previousTs1GStop = getGStop(commonStopAndPrevious[1]);
+				final GStop previousTs2GStop = getGStop(commonStopAndPrevious[2]);
+				final double commonGStopLat = Double.parseDouble(commonGStop.stop_lat);
+				final double commonGStopLon = Double.parseDouble(commonGStop.stop_lon);
+				double previousTs1Distance = findDistance(commonGStopLat, commonGStopLon, Double.parseDouble(previousTs1GStop.stop_lat),
+						Double.parseDouble(previousTs1GStop.stop_lon));
+				double previousTs2Distance = findDistance(commonGStopLat, commonGStopLon, Double.parseDouble(previousTs2GStop.stop_lat),
+						Double.parseDouble(previousTs2GStop.stop_lon));
+				System.out.println("Resolved using 1st common stop " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " ("
+						+ commonStopAndPrevious[1].getStopId() + " " + previousTs1Distance + ", " + commonStopAndPrevious[2].getStopId() + " "
+						+ previousTs2Distance + ")");
+				if (previousTs1Distance > previousTs2Distance) {
+					nl.add(ts1);
+					nlStopId.add(ts1.getStopId());
+					last = ts1;
+					i1++;
+					continue;
+				} else {
+					nl.add(ts2);
+					nlStopId.add(ts2.getStopId());
+					last = ts2;
+					i2++;
+					continue;
+				}
+			}
+			System.out.println("Resolved using arbitrary GPS coordinate order " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId());
+			final GStop ts1GStop = getGStop(ts1);
+			final GStop ts2GStop = getGStop(ts2);
+			final double ts1GStopLat = Double.parseDouble(ts1GStop.stop_lat);
+			final double ts1GStopLon = Double.parseDouble(ts1GStop.stop_lon);
+			final double ts2GStopLat = Double.parseDouble(ts2GStop.stop_lat);
+			final double ts2GStopLon = Double.parseDouble(ts2GStop.stop_lon);
+			if (ts1GStopLat < ts2GStopLat || ts1GStopLon < ts2GStopLon) {
 				nl.add(ts1);
+				nlStopId.add(ts1.getStopId());
+				last = ts1;
 				i1++;
-			} else if (merge < 0) {
+				continue;
+			} else {
 				nl.add(ts2);
+				nlStopId.add(ts2.getStopId());
+				last = ts2;
 				i2++;
-			} else { // merge == 0
-				// System.out.println("Have to resolve: " + ts1.toString() + " vs " + ts2.toString());
-				// System.exit(-1);
-				return nl;
+				continue;
 			}
 		}
 		// add remaining stops
@@ -269,13 +373,143 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		return nl;
 	}
 
+	private MTripStop[] findFirstCommonStop(List<MTripStop> l1, List<MTripStop> l2) {
+		MTripStop previousTs1 = null;
+		MTripStop previousTs2 = null;
+		for (MTripStop tts1 : l1) {
+			previousTs2 = null;
+			for (MTripStop tts2 : l2) {
+				if (tts1.getStopId() == tts2.getStopId()) {
+					if (previousTs1 == null || previousTs2 == null) {
+						System.out.println("Common stop found but no previous stop!");
+					} else {
+						MTripStop[] commonStopAndPrevious = new MTripStop[3];
+						commonStopAndPrevious[0] = tts1;
+						commonStopAndPrevious[1] = previousTs1;
+						commonStopAndPrevious[2] = previousTs2;
+						return commonStopAndPrevious;
+					}
+				}
+				previousTs2 = tts2;
+			}
+			previousTs1 = tts1;
+		}
+		return new MTripStop[] {};
+	}
+
+	private final float[] results = new float[2];
+	private float findDistance(double lat1, double lon1, double lat2, double lon2) {
+		computeDistanceAndBearing(lat1, lon1, lat2, lon2, results);
+		return results[0];
+	}
+	Map<Integer, GStop> gStopsCache = new HashMap<Integer, GStop>();
+
+	public GStop getGStop(MTripStop ts) {
+		return gStopsCache.get(ts.getStopId());
+	}
+
+	@SuppressWarnings("unused")
+	@Deprecated
 	private static boolean isInList(List<MTripStop> l, int stopId) {
-		for (MTripStop ts : l) {
+		for (int i = 0; i < l.size(); i++) {
+			MTripStop ts = l.get(i);
 			// if (ts.stopId.equals(stopId)) {
-			if (ts.stopId == stopId) {
+			if (ts.getStopId() == stopId) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	private static boolean isInList(Set<Integer> lIds, int spotId) {
+		return lIds.contains(spotId);
+	}
+
+	// https://android.googlesource.com/platform/frameworks/base/+/refs/heads/master/location/java/android/location/Location.java
+	private static void computeDistanceAndBearing(double lat1, double lon1, double lat2, double lon2, float[] results) {
+		// Based on http://www.ngs.noaa.gov/PUBS_LIB/inverse.pdf
+		// using the "Inverse Formula" (section 4)
+
+		int MAXITERS = 20;
+		// Convert lat/long to radians
+		lat1 *= Math.PI / 180.0;
+		lat2 *= Math.PI / 180.0;
+		lon1 *= Math.PI / 180.0;
+		lon2 *= Math.PI / 180.0;
+
+		double a = 6378137.0; // WGS84 major axis
+		double b = 6356752.3142; // WGS84 semi-major axis
+		double f = (a - b) / a;
+		double aSqMinusBSqOverBSq = (a * a - b * b) / (b * b);
+
+		double L = lon2 - lon1;
+		double A = 0.0;
+		double U1 = Math.atan((1.0 - f) * Math.tan(lat1));
+		double U2 = Math.atan((1.0 - f) * Math.tan(lat2));
+
+		double cosU1 = Math.cos(U1);
+		double cosU2 = Math.cos(U2);
+		double sinU1 = Math.sin(U1);
+		double sinU2 = Math.sin(U2);
+		double cosU1cosU2 = cosU1 * cosU2;
+		double sinU1sinU2 = sinU1 * sinU2;
+
+		double sigma = 0.0;
+		double deltaSigma = 0.0;
+		double cosSqAlpha = 0.0;
+		double cos2SM = 0.0;
+		double cosSigma = 0.0;
+		double sinSigma = 0.0;
+		double cosLambda = 0.0;
+		double sinLambda = 0.0;
+
+		double lambda = L; // initial guess
+		for (int iter = 0; iter < MAXITERS; iter++) {
+			double lambdaOrig = lambda;
+			cosLambda = Math.cos(lambda);
+			sinLambda = Math.sin(lambda);
+			double t1 = cosU2 * sinLambda;
+			double t2 = cosU1 * sinU2 - sinU1 * cosU2 * cosLambda;
+			double sinSqSigma = t1 * t1 + t2 * t2; // (14)
+			sinSigma = Math.sqrt(sinSqSigma);
+			cosSigma = sinU1sinU2 + cosU1cosU2 * cosLambda; // (15)
+			sigma = Math.atan2(sinSigma, cosSigma); // (16)
+			double sinAlpha = (sinSigma == 0) ? 0.0 : cosU1cosU2 * sinLambda / sinSigma; // (17)
+			cosSqAlpha = 1.0 - sinAlpha * sinAlpha;
+			cos2SM = (cosSqAlpha == 0) ? 0.0 : cosSigma - 2.0 * sinU1sinU2 / cosSqAlpha; // (18)
+
+			double uSquared = cosSqAlpha * aSqMinusBSqOverBSq; // defn
+			A = 1 + (uSquared / 16384.0) * // (3)
+					(4096.0 + uSquared * (-768 + uSquared * (320.0 - 175.0 * uSquared)));
+			double B = (uSquared / 1024.0) * // (4)
+					(256.0 + uSquared * (-128.0 + uSquared * (74.0 - 47.0 * uSquared)));
+			double C = (f / 16.0) * cosSqAlpha * (4.0 + f * (4.0 - 3.0 * cosSqAlpha)); // (10)
+			double cos2SMSq = cos2SM * cos2SM;
+			deltaSigma = B
+					* sinSigma
+					* // (6)
+					(cos2SM + (B / 4.0)
+							* (cosSigma * (-1.0 + 2.0 * cos2SMSq) - (B / 6.0) * cos2SM * (-3.0 + 4.0 * sinSigma * sinSigma) * (-3.0 + 4.0 * cos2SMSq)));
+
+			lambda = L + (1.0 - C) * f * sinAlpha * (sigma + C * sinSigma * (cos2SM + C * cosSigma * (-1.0 + 2.0 * cos2SM * cos2SM))); // (11)
+
+			double delta = (lambda - lambdaOrig) / lambda;
+			if (Math.abs(delta) < 1.0e-12) {
+				break;
+			}
+		}
+
+		float distance = (float) (b * A * (sigma - deltaSigma));
+		results[0] = distance;
+		if (results.length > 1) {
+			float initialBearing = (float) Math.atan2(cosU2 * sinLambda, cosU1 * sinU2 - sinU1 * cosU2 * cosLambda);
+			initialBearing *= 180.0 / Math.PI;
+			results[1] = initialBearing;
+			if (results.length > 2) {
+				float finalBearing = (float) Math.atan2(cosU1 * sinLambda, -sinU1 * cosU2 + cosU1 * sinU2 * cosLambda);
+				finalBearing *= 180.0 / Math.PI;
+				results[2] = finalBearing;
+			}
+		}
 	}
 }

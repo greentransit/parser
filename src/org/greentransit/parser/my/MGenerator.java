@@ -72,7 +72,7 @@ public class MGenerator {
 		// generate trip stops stops IDs to check stop usefulness
 		Set<Integer> tripStopStopIds = new HashSet<Integer>();
 		for (MTripStop mTripStop : mTripStops) {
-			tripStopStopIds.add(mTripStop.stopId);
+			tripStopStopIds.add(mTripStop.getStopId());
 		}
 
 		// generate stops
@@ -117,6 +117,9 @@ public class MGenerator {
 		// TODO delete all files at the beginning and write data ASAP instead of keeping all in memory before here
 		long start = System.currentTimeMillis();
 		final File dumpDirF = new File(dumpDir);
+		if (!dumpDirF.exists()) {
+			dumpDirF.mkdir();
+		}
 		System.out.println("Writing files (" + dumpDirF.toURI() + ")...");
 		File file = null;
 		BufferedWriter ow = null;
@@ -280,6 +283,6 @@ public class MGenerator {
 
 	public Integer getLastStopId(List<MTripStop> tripStops) {
 		Collections.sort(tripStops);
-		return tripStops.get(tripStops.size() - 1).stopId;
+		return tripStops.get(tripStops.size() - 1).getStopId();
 	}
 }

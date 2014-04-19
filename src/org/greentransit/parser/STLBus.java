@@ -94,7 +94,7 @@ public class STLBus implements GAgencyTools {
 	public int getTripId(GTrip gTrip) {
 		// trip_id AOUT1212E2D10222190529 => 12E
 		// route_id AOUT1212E => 12E
-		String route = gTrip.route_id.substring(ROUTE_ID_FILTER.length(), gTrip.route_id.length() - 1);
+		String route = gTrip.getRouteId().substring(ROUTE_ID_FILTER.length(), gTrip.getRouteId().length() - 1);
 		int direction = getDirection(gTrip).intValue();
 		return Integer.valueOf(route + "0" + direction);
 	}
@@ -118,19 +118,9 @@ public class STLBus implements GAgencyTools {
 	public static MDirectionType getDirection(GTrip gTrip) {
 		// AOUT1212E => E
 		// AOUT1212O => O => W
-		return MDirectionType.parse(gTrip.route_id.substring(gTrip.route_id.length() - 1));
+		return MDirectionType.parse(gTrip.getRouteId().substring(gTrip.getRouteId().length() - 1));
 	}
 
-	@Override
-	public int mergeTrip(MTripStop ts1, MTripStop ts2, List<MTripStop> l1, List<MTripStop> l2, int i1, int i2) {
-		int result = 0;
-		// TODO?
-		System.out.println("Have to resolve: " + ts1.tripIdString + "," + ts1.stopId + "," + ts2.stopId);
-		System.out.println("l1:" + l1.toString());
-		System.out.println("l2:" + l2.toString());
-		System.exit(-1);
-		return result;
-	}
 
 	@Override
 	public boolean excludeTrip(GTrip gTrip) {

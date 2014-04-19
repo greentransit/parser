@@ -15,7 +15,10 @@ public class MTrip implements Comparable<MTrip> {
 	private int headsignType = HEADSIGN_TYPE_STRING; // 0 = String, 1 = direction, 2= inbound, 3=stopId
 	private String headsignValue = "";
 	private int headsignId = 0;
-	public int routeId; // 10
+	private int routeId; // 10
+
+	private int id = -1;
+	private String idString = null;
 
 	// private String url;
 
@@ -28,38 +31,52 @@ public class MTrip implements Comparable<MTrip> {
 	}
 
 	public int getId() {
-		return Integer.valueOf(this.routeId + "0" + this.headsignId);
+		if (this.id < 0) {
+			this.id = Integer.valueOf(this.routeId + "0" + this.headsignId);
+		}
+		return this.id;
 	}
 
 	public String getIdString() {
-		return this.routeId + "-" + this.headsignValue;
+		if (this.idString == null) {
+			this.idString = this.routeId + "-" + this.headsignValue;
+		}
+		return this.idString;
 	}
 
 	public MTrip setHeadsignString(String headsignString, int headsignId) {
 		this.headsignType = HEADSIGN_TYPE_STRING;
 		this.headsignValue = headsignString;
+		this.idString = null; // reset
 		this.headsignId = headsignId;
+		this.id = -1; // reset
 		return this;
 	}
 
 	public MTrip setHeadsignDirection(MDirectionType direction) {
 		this.headsignType = HEADSIGN_TYPE_DIRECTION;
 		this.headsignValue = direction.id;
+		this.idString = null; // reset
 		this.headsignId = direction.intValue();
+		this.id = -1; // reset
 		return this;
 	}
 
 	public MTrip setHeadsignInbound(MInboundType inbound) {
 		this.headsignType = HEADSIGN_TYPE_INBOUND;
 		this.headsignValue = inbound.id;
+		this.idString = null; // reset
 		this.headsignId = Integer.valueOf(inbound.id);
+		this.id = -1; // reset
 		return this;
 	}
 
 	public MTrip setHeadsignStop(MStop stop) {
 		this.headsignType = HEADSIGN_TYPE_STOP_ID;
 		this.headsignValue = String.valueOf(stop.id);
+		this.idString = null; // reset
 		this.headsignId = stop.id;
+		this.id = -1; // reset
 		return this;
 	}
 

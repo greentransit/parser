@@ -66,9 +66,6 @@ public class GTripStop {
 	// return this.trip_id + this.stop_id;
 	// }
 
-	public static String getUID(String route_id, String trip_id, String stop_id) {
-		return getUID(route_id + trip_id, stop_id);
-	}
 
 	public static String getUID(String trip_uid, String stop_id) {
 		return trip_uid + stop_id;
