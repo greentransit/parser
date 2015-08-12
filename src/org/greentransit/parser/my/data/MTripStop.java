@@ -5,7 +5,6 @@ import java.util.List;
 public class MTripStop implements Comparable<MTripStop> {
 
 	private int tripId;
-	public String tripIdString;
 	private int stopId;
 	public int stopSequence;
 	private String uid;
@@ -14,9 +13,8 @@ public class MTripStop implements Comparable<MTripStop> {
 	// public MPickupType pickup;
 	// private String url;
 
-	public MTripStop(int tripId, String tripIdString, int stopId, int stopSequence/* , MDropOffType dropOff, MPickupType pickup */) {
+	public MTripStop(int tripId, /* String tripIdString, */int stopId, int stopSequence/* , MDropOffType dropOff, MPickupType pickup */) {
 		this.tripId = tripId;
-		this.tripIdString = tripIdString;
 		this.stopId = stopId;
 		this.stopSequence = stopSequence;
 		this.uid = this.tripId + "" + this.stopId;
@@ -35,6 +33,10 @@ public class MTripStop implements Comparable<MTripStop> {
 	public String getUID() {
 		// identifies a trip + stop
 		return this.uid;
+	}
+
+	public int getTripId() {
+		return tripId;
 	}
 
 	public int getStopId() {
@@ -66,14 +68,14 @@ public class MTripStop implements Comparable<MTripStop> {
 
 	@Override
 	public String toString() {
-		return new StringBuilder() //
+		StringBuilder sb = new StringBuilder() //
 				// .append(',') // ID
-				/* .append('\'') */.append(tripId)/* .append('\'') */.append(',') // TRIP ID
-				/* .append('\'') */.append(stopId)/* .append('\'') */.append(',') // STOP ID
-				.append(stopSequence)/* .append(',') */// STOP SEQUENCe
-				// .append(pickup).append(',') // PICKUP
-				// .append(dropOff) // DROP OFF
-				.toString();
+				/* .append('\'') */.append(tripId)/* .append('\'') */// TRIP ID
+				.append(',') //
+				/* .append('\'') */.append(stopId)/* .append('\'') */// STOP ID
+				.append(',') //
+				.append(stopSequence); // STOP SEQUENCE
+		return sb.toString();
 	}
 
 	@Override

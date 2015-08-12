@@ -6,6 +6,7 @@ import java.util.Map;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
 import org.greentransit.parser.gtfs.GReader;
+import org.greentransit.parser.gtfs.data.GCalendar;
 import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GSpec;
@@ -20,12 +21,12 @@ import org.greentransit.parser.my.data.MTrip;
 // http://www.stm.info/fichiers/gtfs/gtfs_stm.zip
 public class STMBus implements GAgencyTools {
 
-	public static final String ROUTE_ID_FILTER = null; // "97"; //
+	public static final String ROUTE_ID_FILTER = null;
 	public static final String ROUTE_TYPE_FILTER = "3"; // bus only
-	public static final String SERVICE_ID_FILTER = "14J"; // TODO use calendar
+	public static final String SERVICE_ID_FILTER = "15U";
 	public static final String STOP_ID_FILTER = null;
-	public static final int THREAD_POOL_SIZE = 1; // 6; // 1
-	public static final List<String> EXCLUDED_ROUTE_IDS = null; // Arrays.asList(new String[] { "809" });
+	public static final int THREAD_POOL_SIZE = 4;
+	public static final List<String> EXCLUDED_ROUTE_IDS = null;
 
 	public static void main(String[] args) {
 		new STMBus().start(args);
@@ -34,18 +35,16 @@ public class STMBus implements GAgencyTools {
 	public void start(String[] args) {
 		System.out.printf("Generating STM bus data...\n");
 		long start = System.currentTimeMillis();
-		// GTFS parsing
 		GSpec gtfs = GReader.readGtfsZipFile(args[0], this);
 		gtfs.services = GReader.extractServices(gtfs);
 		gtfs.tripStops = GReader.extractTripStops(gtfs);
+		if (args.length >= 4 && "true".equals(args[4])) {
+			GReader.generateStopTimesFromFrequencies(gtfs);
+		}
 		Map<Integer, GSpec> gtfsByMRouteId = GReader.splitByRouteId(gtfs, this);
-		// Objects generation
 		MSpec mSpec = MGenerator.generateMSpec(gtfsByMRouteId, gtfs.stops, this);
-		// Dump to files
 		MGenerator.dumpFiles(mSpec, args[1], args[2]);
-
-		System.out.printf("Generating STM bus data... DONE in %d seconds\n", ((System.currentTimeMillis() - start) / 1000));
-		// System.exit(0);
+		System.out.printf("Generating STM bus data... DONE in %s.\n", MGenerator.getPrettyDuration(System.currentTimeMillis() - start));
 	}
 
 	@Override
@@ -69,23 +68,14 @@ public class STMBus implements GAgencyTools {
 		result = result.replace("( ", "(");
 		result = result.replace(" )", ")");
 		result = result.replace("(nuit)", "");
-		// result = result.replace("/ ", "/");
-		// result = result.replace(" /", "/");
-		result = result.replace("/", " / "); // double white-spaces removed
-											 // later
+		result = result.replace("/", " / ");
 		return MSpec.cleanLabel(result);
 	}
 
 	public static final String COLOR_GREEEN = "007339";
 	public static final String COLOR_BLACK = "000000";
 	public static final String COLOR_BLUE = "0060AA";
-	public static final String COLOR_RED = "ff0000";
 
-	public static final String COLOR_LOCAL = "009ee0";
-	public static final String COLOR_10MIN = "97be0d";
-	public static final String COLOR_NIGHT = "646567";
-	public static final String COLOR_EXPRESS = "e4368a";
-	public static final String COLOR_SHUTTLE = "781b7d";
 
 	public static final List<Integer> ROUTES_10MIN = Arrays.asList(new Integer[] { //
 			18, 24, 32, 33, 44, 45, 48, 49, 51, 55, 64, 67, 69, 80, 90, 97, // 0
@@ -93,19 +83,12 @@ public class STMBus implements GAgencyTools {
 					211, // 2
 					406, 470 }); // 4
 
-	public static final List<Integer> ROUTES_RED = Arrays.asList(new Integer[] { //
-			13, 25, 39, 46, 52, 73, 74, 75, // 0
-					101, 115, 116, 135, 188, // 1
-					213, 216, 218, 219, 225 }); // 2
 
 	@Override
 	public String getRouteColor(GRoute gRoute) {
 		int routeId = getRouteId(gRoute);
-		if (routeId == 747) {
+		if (routeId >= 700) {
 			return COLOR_BLUE;
-		}
-		if (ROUTES_RED.contains(routeId)) {
-			return COLOR_RED;
 		}
 		if (routeId >= 400) {
 			return COLOR_GREEEN;
@@ -148,15 +131,6 @@ public class STMBus implements GAgencyTools {
 		return false;
 	}
 
-	// @Override
-	public int getTripId(GTrip gTrip) {
-		return Integer.valueOf(gTrip.getRouteId() + getDirection(gTrip).intValue());
-	}
-
-	public String getTripIdString(String routeId, String directionId) {
-		return routeId + "-" + MDirectionType.parse(directionId);
-	}
-
 	@Override
 	public void setTripHeadsign(MTrip mTrip, GTrip gTrip) {
 		// mTrip.headsignType = MyTrip.HEADSIGN_TYPE_DIRECTION;
@@ -166,8 +140,12 @@ public class STMBus implements GAgencyTools {
 		mTrip.setHeadsignDirection(getDirection(gTrip));
 	}
 
+	@Override
+	public boolean mergeHeadsign(MTrip mTrip, MTrip mTripToMerge) {
+		return mTrip.mergeHeadsignValue(mTripToMerge);
+	}
+
 	public static MDirectionType getDirection(GTrip gTrip) {
-		// 189-W
 		return MDirectionType.parse(gTrip.trip_headsign.substring(gTrip.trip_headsign.length() - 1));
 	}
 
@@ -181,58 +159,65 @@ public class STMBus implements GAgencyTools {
 	}
 
 	@Override
-	public boolean excludeCalendarDates(GCalendarDate gCalendarDates) {
+	public boolean excludeCalendarDate(GCalendarDate gCalendarDates) {
 		if (SERVICE_ID_FILTER != null && !gCalendarDates.service_id.contains(SERVICE_ID_FILTER)) {
 			return true;
 		}
 		return false;
 	}
 
-	public static final String PLACE_CHAR_DE = "de ";
-	public static final int PLACE_CHAR_DE_LENGTH = PLACE_CHAR_DE.length();
+	@Override
+	public boolean excludeCalendar(GCalendar gCalendar) {
+		if (SERVICE_ID_FILTER != null && !gCalendar.service_id.contains(SERVICE_ID_FILTER)) {
+			return true;
+		}
+		return false;
+	}
 
-	public static final String PLACE_CHAR_DES = "des ";
-	public static final int PLACE_CHAR_DES_LENGTH = PLACE_CHAR_DES.length();
+	private static final String PLACE_CHAR_DE = "de ";
+	private static final int PLACE_CHAR_DE_LENGTH = PLACE_CHAR_DE.length();
 
-	public static final String PLACE_CHAR_DU = "du ";
-	public static final int PLACE_CHAR_DU_LENGTH = PLACE_CHAR_DU.length();
+	private static final String PLACE_CHAR_DES = "des ";
+	private static final int PLACE_CHAR_DES_LENGTH = PLACE_CHAR_DES.length();
 
-	public static final String PLACE_CHAR_LA = "la ";
-	public static final int PLACE_CHAR_LA_LENGTH = PLACE_CHAR_LA.length();
+	private static final String PLACE_CHAR_DU = "du ";
+	private static final int PLACE_CHAR_DU_LENGTH = PLACE_CHAR_DU.length();
 
-	public static final String PLACE_CHAR_L = "l'";
-	public static final int PLACE_CHAR_L_LENGTH = PLACE_CHAR_L.length();
+	private static final String PLACE_CHAR_LA = "la ";
+	private static final int PLACE_CHAR_LA_LENGTH = PLACE_CHAR_LA.length();
 
-	public static final String PLACE_CHAR_D = "d'";
-	public static final int PLACE_CHAR_D_LENGTH = PLACE_CHAR_D.length();
+	private static final String PLACE_CHAR_LE = "le ";
+	private static final int PLACE_CHAR_LE_LENGTH = PLACE_CHAR_LE.length();
 
-	public static final String PLACE_CHAR_IN = "/ ";
-	public static final String PLACE_CHAR_IN_DE = PLACE_CHAR_IN + PLACE_CHAR_DE;
-	public static final String PLACE_CHAR_IN_DES = PLACE_CHAR_IN + PLACE_CHAR_DES;
-	public static final String PLACE_CHAR_IN_DU = PLACE_CHAR_IN + PLACE_CHAR_DU;
-	public static final String PLACE_CHAR_IN_LA = PLACE_CHAR_IN + PLACE_CHAR_LA;
-	public static final String PLACE_CHAR_IN_L = PLACE_CHAR_IN + PLACE_CHAR_L;
-	public static final String PLACE_CHAR_IN_D = PLACE_CHAR_IN + PLACE_CHAR_D;
+	private static final String PLACE_CHAR_L = "l'";
+	private static final int PLACE_CHAR_L_LENGTH = PLACE_CHAR_L.length();
 
-	public static final String PLACE_CHAR_PARENTHESE = "(";
-	public static final String PLACE_CHAR_PARENTHESE_DE = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DE;
-	public static final String PLACE_CHAR_PARENTHESE_DES = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DES;
-	public static final String PLACE_CHAR_PARENTHESE_DU = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DU;
-	public static final String PLACE_CHAR_PARENTHESE_LA = PLACE_CHAR_PARENTHESE + PLACE_CHAR_LA;
-	public static final String PLACE_CHAR_PARENTHESE_L = PLACE_CHAR_PARENTHESE + PLACE_CHAR_L;
-	public static final String PLACE_CHAR_PARENTHESE_D = PLACE_CHAR_PARENTHESE + PLACE_CHAR_D;
-	
-	public static final String PLACE_CHAR_PARENTHESE_STATION = PLACE_CHAR_PARENTHESE + "station ";
-	public static final int PLACE_CHAR_PARENTHESE_STATION_LENGTH = PLACE_CHAR_PARENTHESE_STATION.length();
-	public static final String PLACE_CHAR_PARENTHESE_STATION_BIG = PLACE_CHAR_PARENTHESE + "Station ";
-	public static final int PLACE_CHAR_PARENTHESE_STATION_BIG_LENGTH = PLACE_CHAR_PARENTHESE_STATION_BIG.length();
+	private static final String PLACE_CHAR_D = "d'";
+	private static final int PLACE_CHAR_D_LENGTH = PLACE_CHAR_D.length();
+
+	private static final String PLACE_CHAR_IN = "/ ";
+	private static final String PLACE_CHAR_IN_DE = PLACE_CHAR_IN + PLACE_CHAR_DE;
+	private static final String PLACE_CHAR_IN_DES = PLACE_CHAR_IN + PLACE_CHAR_DES;
+	private static final String PLACE_CHAR_IN_DU = PLACE_CHAR_IN + PLACE_CHAR_DU;
+	private static final String PLACE_CHAR_IN_LA = PLACE_CHAR_IN + PLACE_CHAR_LA;
+	private static final String PLACE_CHAR_IN_LE = PLACE_CHAR_IN + PLACE_CHAR_LE;
+	private static final String PLACE_CHAR_IN_L = PLACE_CHAR_IN + PLACE_CHAR_L;
+	private static final String PLACE_CHAR_IN_D = PLACE_CHAR_IN + PLACE_CHAR_D;
+
+	private static final String PLACE_CHAR_PARENTHESE = "(";
+	private static final String PLACE_CHAR_PARENTHESE_DE = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DE;
+	private static final String PLACE_CHAR_PARENTHESE_DES = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DES;
+	private static final String PLACE_CHAR_PARENTHESE_DU = PLACE_CHAR_PARENTHESE + PLACE_CHAR_DU;
+	private static final String PLACE_CHAR_PARENTHESE_LA = PLACE_CHAR_PARENTHESE + PLACE_CHAR_LA;
+	private static final String PLACE_CHAR_PARENTHESE_LE = PLACE_CHAR_PARENTHESE + PLACE_CHAR_LE;
+	private static final String PLACE_CHAR_PARENTHESE_L = PLACE_CHAR_PARENTHESE + PLACE_CHAR_L;
+	private static final String PLACE_CHAR_PARENTHESE_D = PLACE_CHAR_PARENTHESE + PLACE_CHAR_D;
+
+	private static final String PLACE_CHAR_PARENTHESE_STATION = PLACE_CHAR_PARENTHESE + "station ";
+	private static final String PLACE_CHAR_PARENTHESE_STATION_BIG = PLACE_CHAR_PARENTHESE + "Station ";
 
 	@Override
-	public String cleanStopName(String gStopName) {
-		String result = gStopName;
-		// if (result.startsWith(PLACE_CHAR_DE_LA)) {
-		// result = result.substring(PLACE_CHAR_DE_LA_LENGTH);
-		// } else
+	public String cleanStopName(String result) {
 		if (result.startsWith(PLACE_CHAR_DE)) {
 			result = result.substring(PLACE_CHAR_DE_LENGTH);
 		} else if (result.startsWith(PLACE_CHAR_DES)) {
@@ -242,12 +227,13 @@ public class STMBus implements GAgencyTools {
 		}
 		if (result.startsWith(PLACE_CHAR_LA)) {
 			result = result.substring(PLACE_CHAR_LA_LENGTH);
+		} else if (result.startsWith(PLACE_CHAR_LE)) {
+			result = result.substring(PLACE_CHAR_LE_LENGTH);
 		} else if (result.startsWith(PLACE_CHAR_L)) {
 			result = result.substring(PLACE_CHAR_L_LENGTH);
 		} else if (result.startsWith(PLACE_CHAR_D)) {
 			result = result.substring(PLACE_CHAR_D_LENGTH);
 		}
-
 		// if (result.contains(PLACE_CHAR_IN_DE_LA)) {
 		// result = result.replace(PLACE_CHAR_IN_DE_LA, PLACE_CHAR_IN);
 		// } else
@@ -260,6 +246,8 @@ public class STMBus implements GAgencyTools {
 		}
 		if (result.contains(PLACE_CHAR_IN_LA)) {
 			result = result.replace(PLACE_CHAR_IN_LA, PLACE_CHAR_IN);
+		} else if (result.contains(PLACE_CHAR_IN_LE)) {
+			result = result.replace(PLACE_CHAR_IN_LE, PLACE_CHAR_IN);
 		} else if (result.contains(PLACE_CHAR_IN_L)) {
 			result = result.replace(PLACE_CHAR_IN_L, PLACE_CHAR_IN);
 		} else if (result.contains(PLACE_CHAR_IN_D)) {
@@ -275,21 +263,19 @@ public class STMBus implements GAgencyTools {
 		}
 		if (result.contains(PLACE_CHAR_PARENTHESE_LA)) {
 			result = result.replace(PLACE_CHAR_PARENTHESE_LA, PLACE_CHAR_PARENTHESE);
+		} else if (result.contains(PLACE_CHAR_PARENTHESE_LE)) {
+			result = result.replace(PLACE_CHAR_PARENTHESE_LE, PLACE_CHAR_PARENTHESE);
 		} else if (result.contains(PLACE_CHAR_PARENTHESE_L)) {
 			result = result.replace(PLACE_CHAR_PARENTHESE_L, PLACE_CHAR_PARENTHESE);
 		} else if (result.contains(PLACE_CHAR_PARENTHESE_D)) {
 			result = result.replace(PLACE_CHAR_PARENTHESE_D, PLACE_CHAR_PARENTHESE);
 		}
-
 		if (result.contains(PLACE_CHAR_PARENTHESE_STATION)) {
 			result = result.replace(PLACE_CHAR_PARENTHESE_STATION, PLACE_CHAR_PARENTHESE);
 		}
 		if (result.contains(PLACE_CHAR_PARENTHESE_STATION_BIG)) {
 			result = result.replace(PLACE_CHAR_PARENTHESE_STATION_BIG, PLACE_CHAR_PARENTHESE);
 		}
-		// TODO MORE ?
-		// TODO transform Station Papineau (Dorion / Sainte-Catherine) => Dorion
-		// / Sainte-Catherine (Station Papineau) OR Dorion / Sainte-Catherine
 		return MSpec.cleanLabel(result);
 	}
 
@@ -315,10 +301,4 @@ public class STMBus implements GAgencyTools {
 	public int getDepartureTime(GStopTime gStopTime) {
 		return Integer.valueOf(gStopTime.departure_time.replaceAll(":", ""));
 	}
-
-	@Override
-	public int getCalendarDate(GCalendarDate gCalendarDate) {
-		return Integer.valueOf(gCalendarDate.date);
-	}
-
 }

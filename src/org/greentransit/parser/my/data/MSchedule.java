@@ -22,13 +22,15 @@ public class MSchedule implements Comparable<MSchedule> {
 
 	@Override
 	public String toString() {
-		return new StringBuilder() //
-				.append('\'').append(MSpec.escape(serviceId)).append('\'').append(',') // service ID
-				// no route ID, just for file split
-				/* .append('\'') */.append(tripId)/* .append('\'') */.append(',') // trip ID
-				/* .append('\'') */.append(stopId)/* .append('\'') */.append(',') // stop ID
-				/* .append('\'') */.append(departure)/* .append('\'') */// departure
-				.toString();
+		StringBuilder sb = new StringBuilder(); //
+		sb.append('\'').append(MSpec.escape(serviceId)).append('\''); // service ID
+		sb.append(','); //
+		sb/* .append('\'') */.append(tripId)/* .append('\'') */; // trip ID
+		sb.append(','); //
+		sb/* .append('\'') */.append(stopId)/* .append('\'') */; // stop ID
+		sb.append(','); //
+		sb/* .append('\'') */.append(departure)/* .append('\'') */; // departure
+		return sb.toString();
 	}
 
 	@Override

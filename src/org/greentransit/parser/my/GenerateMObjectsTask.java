@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
+import org.greentransit.parser.gtfs.data.GCalendar;
 import org.greentransit.parser.gtfs.data.GCalendarDate;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GSpec;
@@ -43,7 +44,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 	public MSpec call() {
 		final long startAt = System.currentTimeMillis();
 		System.out.println(this.routeId + ": processing... ");
-		HashMap<Integer, MServiceDate> mServiceDates = new HashMap<Integer, MServiceDate>();
+		Set<MServiceDate> mServiceDates = new HashSet<MServiceDate>();
 		HashMap<String, MSchedule> mSchedules = new HashMap<String, MSchedule>();
 		Map<Integer, MRoute> mRoutes = new HashMap<Integer, MRoute>();
 		Map<Integer, MTrip> mTrips = new HashMap<Integer, MTrip>();
@@ -55,9 +56,9 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 			mRoute.color = agencyTools.getRouteColor(gRoute);
 			mRoute.textColor = agencyTools.getRouteTextColor(gRoute);
 			if (mRoutes.containsKey(mRoute.id) && !mRoute.equals(mRoutes.get(mRoute.id))) {
-				System.out.println("Route " + mRoute.id + " already in list!");
-				System.out.println(mRoute.toString());
-				System.out.println(mRoutes.get(mRoute.id).toString());
+				System.out.println(this.routeId + ": Route " + mRoute.id + " already in list!");
+				System.out.println(this.routeId + ": " + mRoute.toString());
+				System.out.println(this.routeId + ": " + mRoutes.get(mRoute.id).toString());
 				System.exit(-1);
 			}
 			// find route trips
@@ -68,94 +69,109 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 				}
 				MTrip mTrip = new MTrip(/* mTripId, */mRoute.id);
 				agencyTools.setTripHeadsign(mTrip, gTrip/* , mTripStops.values() */);
+				boolean mergeSuccessful = false;
 				if (mTrips.containsKey(mTrip.getId()) && !mTrips.get(mTrip.getId()).equals(mTrip)) {
-					System.out.println("Different trip " + mTrip.getId() + " already in list (" + mTrip.toString() + " != "
-							+ mTrips.get(mTrip.getId()).toString() + ")");
-					System.exit(-1);
+					if (mTrip.equalsExceptHeadsignValue(mTrips.get(mTrip.getId()))) {
+						mergeSuccessful = agencyTools.mergeHeadsign(mTrip, mTrips.get(mTrip.getId()));
+						if (!mergeSuccessful) {
+							mergeSuccessful = mTrip.mergeHeadsignValue(mTrips.get(mTrip.getId()));
+						}
+					}
+					if (!mergeSuccessful) {
+						System.out.println(this.routeId + ": Different trip " + mTrip.getId() + " already in list (" + mTrip.toString() + " != "
+								+ mTrips.get(mTrip.getId()).toString() + ")");
+						System.exit(-1);
+					}
 				}
 				Integer mTripId = mTrip.getId();// agencyTools.getTripId(gTrip);
 				// find route trip stops
 				Map<String, MTripStop> mTripStops = new HashMap<String, MTripStop>();
 				for (GTripStop gTripStop : gtfs.tripStops.values()) {
-					if (!gTripStop.trip_id.equals(gTrip.getTripId())) {
-						continue;
-					}
-					final GStop gStop = gstops.get(gTripStop.stop_id.trim());
-					int mStopId = gStop == null ? 0 : agencyTools.getStopId(gStop);
-					this.gStopsCache.put(mStopId, gStop);
-					if (mStopId == 0) {
-						System.out.println("Can't found gtfs stop id '" + gTripStop.stop_id + "' from trip ID '" + gTripStop.trip_id + "' ("
-								+ gTrip.getTripId() + ")");
-						continue; // System.exit(-1);
-					}
-					MTripStop mTripStop = new MTripStop(mTripId, mTrip.getIdString(), mStopId, gTripStop.stop_sequence);
-					if (mTripStops.containsKey(mTripStop.getUID()) && !mTripStops.get(mTripStop.getUID()).equals(mTripStop)) {
-						System.out.println("Different trip stop " + mTripStop.getUID() + " already in list(" + mTripStop.toString() + " != "
-								+ mTripStops.get(mTripStop.getUID()).toString() + ")!");
-						System.exit(-1);
-					}
-					// if (myTripStops.containsKey(mTripStop.getUID()) && !myTripStops.get(mTripStop.getUID()).equals(mTripStop)) {
-					// System.out.println("Different trip stop " + mTripStop.getUID() + " already in list(" + mTripStop.toString() + " != "
-					// + myTripStops.get(mTripStop.getUID()).toString() + ")!");
-					// System.exit(-1);
-					// }
-					mTripStops.put(mTripStop.getUID(), mTripStop);
-					// myTripStops.put(mTripStop.getUID(), mTripStop);
-					
-					for (GStopTime gStopTime : gtfs.stopTimes) {
-						if (!gStopTime.trip_id.equals(gTripStop.trip_id) || !gStopTime.stop_id.equals(gTripStop.stop_id)) {
+					try {
+						if (!gTripStop.trip_id.equals(gTrip.getTripId())) {
 							continue;
 						}
-						MSchedule mSchedule = new MSchedule(gTrip.service_id, mRoute.id, mTripId, mStopId, agencyTools.getDepartureTime(gStopTime));
-						if (mSchedules.containsKey(mSchedule.getUID()) && !mSchedules.get(mSchedule.getUID()).equals(mSchedule)) {
-							System.out.println("Different schedule " + mSchedule.getUID() + " already in list(" + mSchedule.toString() + " != "
-									+ mSchedules.get(mSchedule.getUID()).toString() + ")!");
+						final GStop gStop = gstops.get(gTripStop.stop_id.trim());
+						int mStopId = gStop == null ? 0 : agencyTools.getStopId(gStop);
+						this.gStopsCache.put(mStopId, gStop);
+						if (mStopId == 0) {
+							System.out.println(this.routeId + ": Can't found gtfs stop id '" + gTripStop.stop_id + "' from trip ID '" + gTripStop.trip_id
+									+ "' (" + gTrip.getTripId() + ")");
+							continue; // System.exit(-1);
+						}
+						MTripStop mTripStop = new MTripStop(mTripId, /* mTrip.getIdString(), */mStopId, gTripStop.stop_sequence);
+						if (mTripStops.containsKey(mTripStop.getUID()) && !mTripStops.get(mTripStop.getUID()).equals(mTripStop)) {
+							System.out.println(this.routeId + ": Different trip stop " + mTripStop.getUID() + " already in list (" + mTripStop.toString()
+									+ " != " + mTripStops.get(mTripStop.getUID()).toString() + ")!");
 							System.exit(-1);
 						}
-						mSchedules.put(mSchedule.getUID(), mSchedule);
+						mTripStops.put(mTripStop.getUID(), mTripStop);
+						for (GStopTime gStopTime : gtfs.stopTimes) {
+							if (!gStopTime.trip_id.equals(gTripStop.trip_id) || !gStopTime.stop_id.equals(gTripStop.stop_id)) {
+								continue;
+							}
+							MSchedule mSchedule = new MSchedule(gTrip.service_id, mRoute.id, mTripId, mStopId, agencyTools.getDepartureTime(gStopTime));
+							if (mSchedules.containsKey(mSchedule.getUID()) && !mSchedules.get(mSchedule.getUID()).equals(mSchedule)) {
+								System.out.println(this.routeId + ": Different schedule " + mSchedule.getUID() + " already in list (" + mSchedule.toString()
+										+ " != " + mSchedules.get(mSchedule.getUID()).toString() + ")!");
+								System.exit(-1);
+							}
+							mSchedules.put(mSchedule.getUID(), mSchedule);
+						}
+						serviceIds.add(gTrip.service_id);
+					} catch (Exception e) {
+						System.out.println("Error while processing " + gTripStop);
+						e.printStackTrace();
+						System.exit(-1);
 					}
-					serviceIds.add(gTrip.service_id);
 				}
 				List<MTripStop> mTripStopsList = new ArrayList<MTripStop>(mTripStops.values());
 				Collections.sort(mTripStopsList);
 				if (tripIdToMTripStops.containsKey(mTripId)) {
 					List<MTripStop> cTripStopsList = tripIdToMTripStops.get(mTripId);
 					if (!equalsMyTripStopLists(mTripStopsList, cTripStopsList)) {
-						// System.out.println("Need to merge gtfs trip: " + gTrip.trip_id);
 						tripIdToMTripStops.put(mTripId, mergeMyTripStopLists(mTripStopsList, cTripStopsList));
 					}
 				} else {
 					// just use it
 					tripIdToMTripStops.put(mTripId, mTripStopsList);
 				}
-//				MTrip mTrip = new MTrip(/*mTripId,*/ mRoute.id);
-//				agencyTools.setTripHeadsign(mTrip, gTrip/*, mTripStops.values()*/);
-//				if (mTrips.containsKey(mTrip.getTripId()) && !mTrips.get(mTrip.getTripId()).equals(mTrip)) {
-//					System.out.println("Different trip " + mTrip.getTripId() + " already in list (" + mTrip.toString() + " != " + mTrips.get(mTrip.getTripId()).toString() + ")");
-//					System.exit(-1);
-//				}
 				mTrips.put(mTrip.getId(), mTrip);
 			}
 			for (List<MTripStop> entry : tripIdToMTripStops.values()) {
 				for (MTripStop mTripStop : entry) {
 					if (allMTripStops.containsKey(mTripStop.getUID()) && !allMTripStops.get(mTripStop.getUID()).equals(mTripStop)) {
-						System.out.println("Different trip stop " + mTripStop.getUID() + " already in list(" + mTripStop.toString() + " != "
-								+ allMTripStops.get(mTripStop.getUID()).toString() + ")!");
-						System.exit(-1);
+						System.out.println(this.routeId + ": Different trip stop " + mTripStop.getUID() + " already in the list (" + mTripStop.toString()
+								+ " != " + allMTripStops.get(mTripStop.getUID()).toString() + ")!");
+					} else {
+						allMTripStops.put(mTripStop.getUID(), mTripStop);
+						tripStopIds.add(mTripStop.getStopId());
 					}
-					allMTripStops.put(mTripStop.getUID(), mTripStop);
-					tripStopIds.add(mTripStop.getStopId());
 				}
 			}
 			mRoutes.put(mRoute.id, mRoute);
 		}
 		// SERVICE DATES
-		for (GCalendarDate gCalendarDate : gtfs.calendarDates.values()) {
-			if (!serviceIds.contains(gCalendarDate.service_id)) {
-				continue;
+		Set<String> gCalendarDateServiceRemoved = new HashSet<String>();
+		for (GCalendarDate gCalendarDate : gtfs.calendarDates) {
+			switch (gCalendarDate.exception_type) {
+			case SERVICE_REMOVED: // keep list of removed service for calendars processing
+				gCalendarDateServiceRemoved.add(gCalendarDate.getUID());
+				break;
+			case SERVICE_ADDED:
+				mServiceDates.add(new MServiceDate(gCalendarDate.service_id, gCalendarDate.date));
+				break;
+			default:
+				System.out.println(this.routeId + ": Unexecpted calendar date exeception type '" + gCalendarDate.exception_type + "'!");
 			}
-			int calendarDate = agencyTools.getCalendarDate(gCalendarDate);
-			mServiceDates.put(calendarDate, new MServiceDate(gCalendarDate.service_id, calendarDate));
+		}
+		for (GCalendar gCalendar : gtfs.calendars) {
+			for (GCalendarDate gCalendarDate : gCalendar.getDates()) {
+				if (gCalendarDateServiceRemoved.contains(gCalendarDate.getUID())) {
+					continue; // service REMOVED at this date
+				}
+				mServiceDates.add(new MServiceDate(gCalendarDate.service_id, gCalendarDate.date));
+			}
 		}
 		// // remove not used stops
 		// int removedStopsCount = 0;
@@ -165,7 +181,6 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		// removedStopsCount++;
 		// }
 		// }
-		// System.out.println("Removed " + removedStopsCount + " useless stops.");
 		// put in sorter list
 		// Collections.sort(myStopsList);
 		List<MRoute> mRoutesList = new ArrayList<MRoute>(mRoutes.values());
@@ -174,17 +189,23 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 		Collections.sort(mTripsList);
 		List<MTripStop> mTripStopsList = new ArrayList<MTripStop>(allMTripStops.values());
 		Collections.sort(mTripStopsList);
-		List<MServiceDate> mServiceDatesList = new ArrayList<MServiceDate>(mServiceDates.values());
+		List<MServiceDate> mServiceDatesList = new ArrayList<MServiceDate>(mServiceDates);
 		Collections.sort(mServiceDatesList);
 		List<MSchedule> mSchedulesList = new ArrayList<MSchedule>(mSchedules.values());
 		Collections.sort(mSchedulesList);
-		Map<Integer, List<MSchedule>> mScheduleMap = new HashMap<Integer, List<MSchedule>>();
-		mScheduleMap.put(routeId, mSchedulesList);
-		MSpec myrouteSpec = new MSpec(null, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, mScheduleMap);
+		Map<Integer, List<MSchedule>> mStopScheduleMap = new HashMap<Integer, List<MSchedule>>();
+		for (MSchedule schedule : mSchedulesList) {
+			if (!mStopScheduleMap.containsKey(schedule.stopId)) {
+				mStopScheduleMap.put(schedule.stopId, new ArrayList<MSchedule>());
+			}
+			mStopScheduleMap.get(schedule.stopId).add(schedule);
+		}
+		MSpec myrouteSpec = new MSpec(null, mRoutesList, mTripsList, mTripStopsList, mServiceDatesList, /* mRouteScheduleMap */null, mStopScheduleMap);
 		// return new MySpec(myStopsList, myRoutesList, myTripsList, myTripStopsList);
-		System.out.println(this.routeId + ": processing... DONE in " + (System.currentTimeMillis() - startAt) + " ms");
+		System.out.println(this.routeId + ": processing... DONE in " + MGenerator.getPrettyDuration(System.currentTimeMillis() - startAt) + ".");
 		return myrouteSpec;
 	}
+
 
 	public static boolean equalsMyTripStopLists(List<MTripStop> l1, List<MTripStop> l2) {
 		if (l1 == null && l2 == null) {
@@ -218,12 +239,12 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 			MTripStop ts1 = l1.get(i1);
 			MTripStop ts2 = l2.get(i2);
 			if (isInList(nlStopId, ts1.getStopId())) {
-				System.out.println("Skipped " + ts1.toString() + " because already in the merged list (1).");
+				System.out.println(this.routeId + ": Skipped " + ts1.toString() + " because already in the merged list (1).");
 				i1++; // skip this stop because already in the merged list
 				continue;
 			}
 			if (isInList(nlStopId, ts2.getStopId())) {
-				System.out.println("Skipped " + ts1.toString() + " because already in the merged list (2).");
+				System.out.println(this.routeId + ": Skipped " + ts1.toString() + " because already in the merged list (2).");
 				i2++; // skip this stop because already in the merged list
 				continue;
 			}
@@ -255,9 +276,6 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 				continue;
 			}
 			// MANUAL MERGE
-			// System.out.println("Have to resolve : " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId());
-			// System.out.println("l1:" + l1.toString());
-			// System.out.println("l2:" + l2.toString());
 			// } else if (inL1 && inL2) {
 			// nl.add(agencyTools.chooseTripStop(ts1, ts2, l1, l2, i1, i2));
 			// } else if (!inL1 && !inL2) {
@@ -267,8 +285,8 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 				boolean lastInL1 = isInList(l1StopId, last.getStopId());
 				boolean lastInL2 = isInList(l2StopId, last.getStopId());
 				if (lastInL1 && !lastInL2) {
-					System.out.println("Resolved using last " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:" + last.getStopId()
-							+ ")");
+					System.out.println(this.routeId + ": Resolved using last " + ts1.getTripId() + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:"
+							+ last.getStopId() + ")");
 					nl.add(ts1);
 					nlStopId.add(ts1.getStopId());
 					last = ts1;
@@ -276,8 +294,8 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 					continue;
 				}
 				if (!lastInL1 && lastInL2) {
-					System.out.println("Resolved using last " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:" + last.getStopId()
-							+ ")");
+					System.out.println(this.routeId + ": Resolved using last " + ts1.getTripId() + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:"
+							+ last.getStopId() + ")");
 					nl.add(ts2);
 					nlStopId.add(ts2.getStopId());
 					last = ts2;
@@ -293,8 +311,8 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 				final double lastGStopLon = Double.parseDouble(lastGStop.stop_lon);
 				double ts1Distance = findDistance(lastGStopLat, lastGStopLon, Double.parseDouble(ts1GStop.stop_lat), Double.parseDouble(ts1GStop.stop_lon));
 				double ts2Distance = findDistance(lastGStopLat, lastGStopLon, Double.parseDouble(ts2GStop.stop_lat), Double.parseDouble(ts2GStop.stop_lon));
-				System.out.println("Resolved using last distance " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " (last:"
-						+ last.getStopId() + " " + ts1Distance + ", " + ts2Distance + ")");
+				System.out.println(this.routeId + ": Resolved using last distance " + ts1.getTripId() + "," + ts1.getStopId() + "," + ts2.getStopId()
+						+ " (last:" + last.getStopId() + " " + ts1Distance + ", " + ts2Distance + ")");
 				if (ts1Distance < ts2Distance) {
 					nl.add(ts1);
 					nlStopId.add(ts1.getStopId());
@@ -321,7 +339,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 						Double.parseDouble(previousTs1GStop.stop_lon));
 				double previousTs2Distance = findDistance(commonGStopLat, commonGStopLon, Double.parseDouble(previousTs2GStop.stop_lat),
 						Double.parseDouble(previousTs2GStop.stop_lon));
-				System.out.println("Resolved using 1st common stop " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId() + " ("
+				System.out.println(this.routeId + ": Resolved using 1st common stop " + ts1.getTripId() + "," + ts1.getStopId() + "," + ts2.getStopId() + " ("
 						+ commonStopAndPrevious[1].getStopId() + " " + previousTs1Distance + ", " + commonStopAndPrevious[2].getStopId() + " "
 						+ previousTs2Distance + ")");
 				if (previousTs1Distance > previousTs2Distance) {
@@ -338,7 +356,8 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 					continue;
 				}
 			}
-			System.out.println("Resolved using arbitrary GPS coordinate order " + ts1.tripIdString + "," + ts1.getStopId() + "," + ts2.getStopId());
+			System.out.println(this.routeId + ": Resolved using arbitrary GPS coordinate order " + ts1.getTripId() + "," + ts1.getStopId() + ","
+					+ ts2.getStopId());
 			final GStop ts1GStop = getGStop(ts1);
 			final GStop ts2GStop = getGStop(ts2);
 			final double ts1GStopLat = Double.parseDouble(ts1GStop.stop_lat);
@@ -381,7 +400,7 @@ public class GenerateMObjectsTask implements Callable<MSpec> {
 			for (MTripStop tts2 : l2) {
 				if (tts1.getStopId() == tts2.getStopId()) {
 					if (previousTs1 == null || previousTs2 == null) {
-						System.out.println("Common stop found but no previous stop!");
+						System.out.println(this.routeId + ": Common stop found but no previous stop!");
 					} else {
 						MTripStop[] commonStopAndPrevious = new MTripStop[3];
 						commonStopAndPrevious[0] = tts1;

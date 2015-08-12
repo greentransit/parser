@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -37,18 +36,21 @@ public class MGenerator {
 		List<MRoute> mRoutes = new ArrayList<MRoute>();
 		List<MTrip> mTrips = new ArrayList<MTrip>();
 		List<MTripStop> mTripStops = new ArrayList<MTripStop>();
-		TreeMap<Integer, List<MSchedule>> mSchedules = new TreeMap<Integer, List<MSchedule>>();
+		TreeMap<Integer, List<MSchedule>> mStopSchedules = new TreeMap<Integer, List<MSchedule>>();
 		List<MServiceDate> mServiceDates = new ArrayList<MServiceDate>();
 		ExecutorService threadPoolExecutor = Executors.newFixedThreadPool(agencyTools.getThreadPoolSize());
 		List<Future<MSpec>> list = new ArrayList<Future<MSpec>>();
-		for (Entry<Integer, GSpec> rts : gtfsByMRouteId.entrySet()) {
-			if (rts.getValue().trips == null || rts.getValue().trips.size() == 0) {
-				System.out.println("Skip route ID " + rts.getKey() + " because no route trip.");
+		final List<Integer> routeIds = new ArrayList<Integer>(gtfsByMRouteId.keySet());
+		Collections.sort(routeIds);
+		for (Integer routeId : routeIds) {
+			GSpec routeGTFS = gtfsByMRouteId.get(routeId);
+			if (routeGTFS.trips == null || routeGTFS.trips.size() == 0) {
+				System.out.println("Skip route ID " + routeId + " because no route trip.");
 				continue;
 			}
 			// System.out.println(rts.getKey() + ": scheduled > gRoutes: " + rts.getValue().routes.size() + ", gTrips: " + rts.getValue().trips.size() +
 			// ", gTripStops: " + rts.getValue().tripStops.size());
-			final Future<MSpec> submit = threadPoolExecutor.submit(new GenerateMObjectsTask(agencyTools, rts.getKey(), rts.getValue(), gStops/* , mStops */));
+			final Future<MSpec> submit = threadPoolExecutor.submit(new GenerateMObjectsTask(agencyTools, routeId, routeGTFS, gStops/* , mStops */));
 			list.add(submit);
 		}
 		for (Future<MSpec> future : list) {
@@ -59,7 +61,12 @@ public class MGenerator {
 				mRoutes.addAll(mRouteSpec.routes);
 				mTrips.addAll(mRouteSpec.trips);
 				mTripStops.addAll(mRouteSpec.tripStops);
-				mSchedules.putAll(mRouteSpec.schedules);
+				for (Entry<Integer, List<MSchedule>> stopScheduleEntry : mRouteSpec.stopSchedules.entrySet()) {
+					if (!mStopSchedules.containsKey(stopScheduleEntry.getKey())) {
+						mStopSchedules.put(stopScheduleEntry.getKey(), new ArrayList<MSchedule>());
+					}
+					mStopSchedules.get(stopScheduleEntry.getKey()).addAll(stopScheduleEntry.getValue());
+				}
 				mServiceDates.addAll(mRouteSpec.serviceDates);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
@@ -109,8 +116,8 @@ public class MGenerator {
 		System.out.printf("- Trip stops: %d\n", mTripStops.size());
 		System.out.printf("- Stops: %d\n", mStopsList.size());
 		System.out.printf("- Service Dates: %d\n", mServiceDates.size());
-		System.out.printf("- Schedules: %d\n", mSchedules.size());
-		return new MSpec(mStopsList, mRoutes, mTrips, mTripStops, mServiceDates, mSchedules);
+		System.out.printf("- Stop Schedules: %d\n", mStopSchedules.size());
+		return new MSpec(mStopsList, mRoutes, mTrips, mTripStops, mServiceDates, /* mRouteSchedules */null, mStopSchedules);
 	}
 
 	public static void dumpFiles(MSpec mSpec, String dumpDir, final String fileBase) {
@@ -120,7 +127,7 @@ public class MGenerator {
 		if (!dumpDirF.exists()) {
 			dumpDirF.mkdir();
 		}
-		System.out.println("Writing files (" + dumpDirF.toURI() + ")...");
+		System.out.println("Writing " + "V1" + " files (" + dumpDirF.toURI() + ")...");
 		File file = null;
 		BufferedWriter ow = null;
 		file = new File(dumpDirF, fileBase + "service_dates");
@@ -144,12 +151,10 @@ public class MGenerator {
 				}
 			}
 		}
-		// delete all "...schedules_route_*"
 		final File[] files = dumpDirF.listFiles(new FilenameFilter() {
 			@Override
 			public boolean accept(final File dir, final String name) {
-				// return name.matches(fileBase + "schedules_route_*");
-				return name.startsWith(fileBase + "schedules_route_");
+				return name.startsWith(fileBase + "schedules_stop_");
 			}
 		});
 		for (final File f : files) {
@@ -161,37 +166,32 @@ public class MGenerator {
 		for (MServiceDate mServiceDate : mSpec.serviceDates) {
 			allServiceIds.add(mServiceDate.serviceId);
 		}
-		for (Integer routeId : mSpec.schedules.keySet()) {
-			for (String serviceId : allServiceIds) {
-				try {
-					final List<MSchedule> mRouteSchedules = mSpec.schedules.get(routeId);
-					if (mRouteSchedules != null && mRouteSchedules.size() > 0) {
-						final String fileName = fileBase + "schedules_route_" + routeId + "_service_" + MSpec.escape(serviceId).toLowerCase(Locale.ENGLISH);
-						file = new File(dumpDirF, fileName);
-						boolean empty = true;
-						ow = new BufferedWriter(new FileWriter(file));
-						for (MSchedule mSchedule : mRouteSchedules) {
-							if (mSchedule.serviceId.equals(serviceId)) {
-								// System.out.println(mSchedule.toString());
-								ow.write(mSchedule.toString());
-								ow.write('\n');
-								empty = false;
-							}
-						}
-						if (empty) {
-							file.delete();
-						}
+		for (Integer stopId : mSpec.stopSchedules.keySet()) {
+			try {
+				final List<MSchedule> mStopSchedules = mSpec.stopSchedules.get(stopId);
+				if (mStopSchedules != null && mStopSchedules.size() > 0) {
+					final String fileName = fileBase + "schedules_stop_" + stopId; // + ".json";
+					file = new File(dumpDirF, fileName);
+					boolean empty = true;
+					ow = new BufferedWriter(new FileWriter(file));
+					for (MSchedule mSchedule : mStopSchedules) {
+						ow.write(mSchedule.toString()); // toJSON()?
+						ow.write('\n');
+						empty = false;
 					}
-				} catch (IOException ioe) {
-					System.out.println("I/O Error while writing schedule file!");
-					ioe.printStackTrace();
-					System.exit(-1);
-				} finally {
-					if (ow != null) {
-						try {
-							ow.close();
-						} catch (IOException e) {
-						}
+					if (empty) {
+						file.delete();
+					}
+				}
+			} catch (IOException ioe) {
+				System.out.println("I/O Error while writing schedule file!");
+				ioe.printStackTrace();
+				System.exit(-1);
+			} finally {
+				if (ow != null) {
+					try {
+						ow.close();
+					} catch (IOException e) {
 					}
 				}
 			}
@@ -278,11 +278,44 @@ public class MGenerator {
 				}
 			}
 		}
-		System.out.println("Writing files (" + dumpDirF.toURI() + ")... DONE in " + ((System.currentTimeMillis() - start) / 1000) + " seconds.");
+		System.out.println("Writing files (" + dumpDirF.toURI() + ")... DONE in " + MGenerator.getPrettyDuration(System.currentTimeMillis() - start) + ".");
 	}
 
-	public Integer getLastStopId(List<MTripStop> tripStops) {
+	public static Integer getLastStopId(List<MTripStop> tripStops) {
 		Collections.sort(tripStops);
 		return tripStops.get(tripStops.size() - 1).getStopId();
+	}
+
+	public static final long MILLIS_PER_MILLIS = 1;
+	public static final long MILLIS_PER_SECOND = 1000;
+	public static final long SECONDS_PER_MINUTE = 60;
+	public static final long MINUTES_PER_HOUR = 60;
+	public static final long MILLIS_PER_MINUTE = SECONDS_PER_MINUTE * MILLIS_PER_SECOND;
+	public static final long MILLIS_PER_HOUR = MINUTES_PER_HOUR * MILLIS_PER_MINUTE;
+
+	public static String getPrettyDuration(long durationInMs) {
+		StringBuilder sb = new StringBuilder();
+		long ms = durationInMs / MILLIS_PER_MILLIS % MILLIS_PER_SECOND;
+		durationInMs -= ms * MILLIS_PER_MILLIS;
+		long s = durationInMs / MILLIS_PER_SECOND % SECONDS_PER_MINUTE;
+		durationInMs -= s * MILLIS_PER_SECOND;
+		long m = durationInMs / MILLIS_PER_MINUTE % MINUTES_PER_HOUR;
+		durationInMs -= m * MILLIS_PER_MINUTE;
+		long h = durationInMs / MILLIS_PER_HOUR;
+		boolean printing = false;
+		if (printing || h > 0) {
+			printing = true;
+			sb.append(h).append("h ");
+		}
+		if (printing || m > 0) {
+			printing = true;
+			sb.append(m).append("m ");
+		}
+		if (printing || s > 0) {
+			printing = true;
+			sb.append(s).append("s ");
+		}
+		sb.append(ms).append("ms ");
+		return sb.toString();
 	}
 }

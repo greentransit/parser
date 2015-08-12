@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -15,8 +16,11 @@ import java.util.Map.Entry;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.greentransit.parser.gtfs.data.GCalendar;
 import org.greentransit.parser.gtfs.data.GCalendarDate;
+import org.greentransit.parser.gtfs.data.GCalendarDatesExceptionType;
 import org.greentransit.parser.gtfs.data.GDropOffType;
+import org.greentransit.parser.gtfs.data.GFrequency;
 import org.greentransit.parser.gtfs.data.GPickupType;
 import org.greentransit.parser.gtfs.data.GRoute;
 import org.greentransit.parser.gtfs.data.GService;
@@ -25,6 +29,7 @@ import org.greentransit.parser.gtfs.data.GStop;
 import org.greentransit.parser.gtfs.data.GStopTime;
 import org.greentransit.parser.gtfs.data.GTrip;
 import org.greentransit.parser.gtfs.data.GTripStop;
+import org.greentransit.parser.my.MGenerator;
 
 /**
  * Class to read a GTFS specification file and return the data in a structured format.
@@ -90,11 +95,13 @@ public class GReader {
 			isr = new InputStreamReader(zip, Charset.forName("UTF-8"));
 			reader = new BufferedReader(isr);
 			// List<GtfsAgency> agencies = null;
-			Map<String, GCalendarDate> calendarDates = null;
+			List<GCalendar> calendars = null;
+			List<GCalendarDate> calendarDates = null;
 			Map<String, GRoute> routes = null;
 			Map<String, GStop> stops = null;
 			Map<String, GTrip> trips = null;
 			List<GStopTime> stopTimes = null;
+			HashMap<String, ArrayList<GFrequency>> tripIdFrequencies = null;
 			List<HashMap<String, String>> fileLines = null;
 			for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
 				if (entry.isDirectory()) {
@@ -109,6 +116,9 @@ public class GReader {
 				if (filename.equals(GCalendarDate.FILENAME)) { // CALENDAR DATES
 					fileLines = readCsv(filename, reader, null, null);
 					calendarDates = processCalendarDates(fileLines, agencyTools);
+				} else if (filename.equals(GCalendar.FILENAME)) { // CALENDAR
+					fileLines = readCsv(filename, reader, null, null);
+					calendars = processCalendar(fileLines, agencyTools);
 				} else if (filename.equals(GRoute.FILENAME)) { // ROUTE
 					fileLines = readCsv(filename, reader, null, null);
 					routes = processRoutes(fileLines, agencyTools);
@@ -121,12 +131,15 @@ public class GReader {
 				} else if (filename.equals(GStopTime.FILENAME)) { // STOP TIME
 					fileLines = readCsv(filename, reader, null, null);
 					stopTimes = processStopTimes(fileLines, agencyTools);
+				} else if (filename.equals(GFrequency.FILENAME)) { // FREQUENCY
+					fileLines = readCsv(filename, reader, null, null);
+					tripIdFrequencies = processFrequencies(fileLines, agencyTools);
 				} else {
 					System.out.println("File not used: " + filename);
 				}
 				fileLines = null;
 			}
-			gspec = new GSpec(/* agencies, */calendarDates, stops, routes, trips, stopTimes);
+			gspec = new GSpec(/* agencies, */calendars, calendarDates, stops, routes, trips, stopTimes, tripIdFrequencies);
 		} catch (IOException ioe) {
 			System.out.println("I/O Error while reading GTFS file!");
 			ioe.printStackTrace();
@@ -151,13 +164,15 @@ public class GReader {
 				}
 			}
 		}
-		System.out.printf("Reading GTFS file '%1$s'... DONE in %2$d seconds\n", gtfsFile, ((System.currentTimeMillis() - start) / 1000));
+		System.out.printf("Reading GTFS file '%1$s'... DONE in %2$s.\n", gtfsFile, MGenerator.getPrettyDuration(System.currentTimeMillis() - start));
 		// System.out.printf("Agencies: %d\n", gspec.agencies.size());
+		System.out.printf("- Calendars: %d\n", gspec.calendars == null ? 0 : gspec.calendars.size());
 		System.out.printf("- CalendarDates: %d\n", gspec.calendarDates.size());
 		System.out.printf("- Routes: %d\n", gspec.routes.size());
 		System.out.printf("- Trips: %d\n", gspec.trips.size());
 		System.out.printf("- Stops: %d\n", gspec.stops.size());
 		System.out.printf("- StopTimes: %d\n", gspec.stopTimes.size());
+		System.out.printf("- Frequencies: %d\n", gspec.tripIdFrequencies.size());
 		return gspec;
 	}
 
@@ -239,14 +254,27 @@ public class GReader {
 	public static Map<String, GService> extractServices(GSpec gtfs) {
 		System.out.println("Generating GTFS services...");
 		HashMap<String, GService> gServices = new HashMap<String, GService>();
-		for (GCalendarDate gCalendarDate : gtfs.calendarDates.values()) {
-			if (gCalendarDate.service_id == null) {
-				continue;
+		if (gtfs.calendars != null) {
+			for (GCalendar gCalendar : gtfs.calendars) {
+				if (gCalendar.service_id == null) {
+					continue;
+				}
+				if (gServices.containsKey(gCalendar.service_id)) {
+					continue;
+				}
+				gServices.put(gCalendar.service_id, new GService(gCalendar.service_id));
 			}
-			if (gServices.containsKey(gCalendarDate.service_id)) {
-				continue;
+		}
+		if (gtfs.calendarDates != null) {
+			for (GCalendarDate gCalendarDate : gtfs.calendarDates) {
+				if (gCalendarDate.service_id == null) {
+					continue;
+				}
+				if (gServices.containsKey(gCalendarDate.service_id)) {
+					continue;
+				}
+				gServices.put(gCalendarDate.service_id, new GService(gCalendarDate.service_id));
 			}
-			gServices.put(gCalendarDate.service_id, new GService(gCalendarDate.service_id));
 		}
 		System.out.println("Generating GTFS services... DONE");
 		System.out.printf("- Services: %d\n", gServices.size());
@@ -285,6 +313,57 @@ public class GReader {
 		return gTripStops;
 	}
 
+	public static void generateStopTimesFromFrequencies(GSpec gtfs) {
+		System.out.printf("\nGenerating GTFS stop times from frequencies...");
+		System.out.printf("\n- Stop times: %d (before)", gtfs.stopTimes.size());
+		SimpleDateFormat gDateFormat = new SimpleDateFormat("HH:mm:ss");
+		int st = 0;
+		if (gtfs.tripIdFrequencies != null) {
+			for (String tripId : gtfs.tripIdFrequencies.keySet()) {
+				ArrayList<GFrequency> tripFrequencies = gtfs.tripIdFrequencies.get(tripId);
+				ArrayList<GStopTime> newGStopTimes = new ArrayList<GStopTime>();
+				Calendar stopTimeCal = Calendar.getInstance();
+				long frequencyStartInMs = -1l;
+				long frequencyEndInMs = -1l;
+				for (GStopTime gStopTime : gtfs.stopTimes) {
+					try {
+						if (!gStopTime.trip_id.equals(tripId)) {
+							continue;
+						}
+						String departureTime = gStopTime.departure_time;
+						stopTimeCal.setTime(gDateFormat.parse(departureTime));
+						for (GFrequency gFrequency : tripFrequencies) {
+							frequencyStartInMs = gDateFormat.parse(gFrequency.start_time).getTime();
+							frequencyEndInMs = gDateFormat.parse(gFrequency.end_time).getTime();
+							while (stopTimeCal.getTimeInMillis() >= frequencyStartInMs && stopTimeCal.getTimeInMillis() < frequencyEndInMs) {
+								stopTimeCal.add(Calendar.SECOND, gFrequency.headway_secs);
+								String newDepartureTimeS = gDateFormat.format(stopTimeCal.getTime());
+								if (stopTimeCal.get(Calendar.DAY_OF_YEAR) > 1) {
+									int indexOf = newDepartureTimeS.indexOf(":");
+									int hour = Integer.parseInt(newDepartureTimeS.substring(0, indexOf)) + 24;
+									newDepartureTimeS = hour + newDepartureTimeS.substring(indexOf);
+								}
+								GStopTime newGStopTime = new GStopTime(tripId, newDepartureTimeS, gStopTime.stop_id, gStopTime.stop_sequence);
+								newGStopTimes.add(newGStopTime);
+							}
+						}
+					} catch (Exception e) {
+						System.out.printf("\nError while generating stop times for '%s'!\n", gStopTime);
+						e.printStackTrace();
+						System.exit(-1);
+					}
+				}
+				for (GStopTime newGStopTime : newGStopTimes) {
+					// addStopTime(newGStopTime);
+					gtfs.stopTimes.add(newGStopTime);
+					st++;
+				}
+			}
+		}
+		System.out.printf("\nGenerating GTFS stop times from frequencies... DONE");
+		System.out.printf("\n- Stop times: %d (after) (new: %d)\n", gtfs.stopTimes.size(), st);
+	}
+
 	// @SuppressWarnings("unused")
 	// @Deprecated
 	// private static Map<String, GtfsRouteStop> extractRouteStops(GtfsSpec
@@ -313,8 +392,8 @@ public class GReader {
 		for (HashMap<String, String> line : lines) {
 			// if (trips.containsKey(line.get(StopTime.TRIP_ID))) {
 			try {
-				GStopTime gStopTime = new GStopTime(line.get(GStopTime.TRIP_ID), line.get(GStopTime.ARRIVAL_TIME), line.get(GStopTime.DEPARTURE_TIME),
-						line.get(GStopTime.STOP_ID), Integer.valueOf(line.get(GStopTime.STOP_SEQUENCE)));
+				GStopTime gStopTime = new GStopTime(line.get(GStopTime.TRIP_ID), line.get(GStopTime.DEPARTURE_TIME), line.get(GStopTime.STOP_ID),
+						Integer.valueOf(line.get(GStopTime.STOP_SEQUENCE)));
 				gStopTime.pickup_type = GPickupType.parse(line.get(GStopTime.PICKUP_TYPE));
 				gStopTime.drop_off_type = GDropOffType.parse(line.get(GStopTime.DROP_OFF_TYPE));
 				stopTimes.add(gStopTime);
@@ -328,21 +407,43 @@ public class GReader {
 		return stopTimes;
 	}
 
-	private static Map<String, GCalendarDate> processCalendarDates(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
-		System.out.println("Processing calendar dates...");
-		Map<String, GCalendarDate> calendarDates = new HashMap<String, GCalendarDate>();
+	private static HashMap<String, ArrayList<GFrequency>> processFrequencies(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
+		System.out.printf("\nProcessing frequencies...");
+		HashMap<String, ArrayList<GFrequency>> tripIdFrequencies = new HashMap<String, ArrayList<GFrequency>>();
 		for (HashMap<String, String> line : lines) {
 			try {
-				String date = line.get(GCalendarDate.DATE);
-				GCalendarDate gCalendarDates = new GCalendarDate(line.get(GCalendarDate.SERVICE_ID), date, line.get(GCalendarDate.EXCEPTION_DATE));
-				if (agencyTools.excludeCalendarDates(gCalendarDates)) {
+				GFrequency gFrequency = new GFrequency(line.get(GFrequency.TRIP_ID), line.get(GFrequency.START_TIME), line.get(GFrequency.END_TIME),
+						Integer.parseInt(line.get(GFrequency.HEADWAY_SECS)));
+				if (!tripIdFrequencies.containsKey(gFrequency.trip_id)) {
+					tripIdFrequencies.put(gFrequency.trip_id, new ArrayList<GFrequency>());
+				}
+				tripIdFrequencies.get(gFrequency.trip_id).add(gFrequency);
+			} catch (Exception e) {
+				System.out.printf("\nError while parsing: '%s'!\n", line);
+				e.printStackTrace();
+				System.exit(-1);
+			}
+		}
+		System.out.printf("\nProcessing frequencies... DONE (%s extracted)\n", tripIdFrequencies.size());
+		return tripIdFrequencies;
+	}
+
+	private static List<GCalendarDate> processCalendarDates(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
+		System.out.println("Processing calendar dates...");
+		List<GCalendarDate> calendarDates = new ArrayList<GCalendarDate>();
+		for (HashMap<String, String> line : lines) {
+			try {
+				GCalendarDatesExceptionType exceptionType = GCalendarDatesExceptionType.parse(line.get(GCalendarDate.EXCEPTION_DATE));
+				int date = Integer.parseInt(line.get(GCalendarDate.DATE));
+				GCalendarDate gCalendarDates = new GCalendarDate(line.get(GCalendarDate.SERVICE_ID), date, exceptionType);
+				if (agencyTools.excludeCalendarDate(gCalendarDates)) {
 					continue; // ignore this service
 				}
 				// if (todayGtfs.compareTo(gCalendarDates.date) > 0) { // TODO remove old dates?
 				// System.out.println("Skipping old schedule " + gCalendarDates.date);
 				// continue; // skip old schedules
 				// }
-				calendarDates.put(date, gCalendarDates);
+				calendarDates.add(gCalendarDates);
 			} catch (Exception e) {
 				System.out.println("Error while processing: " + line);
 				e.printStackTrace();
@@ -351,6 +452,36 @@ public class GReader {
 		}
 		System.out.println("Processing calendar dates... DONE (" + calendarDates.size() + " extracted)");
 		return calendarDates;
+	}
+
+	private static List<GCalendar> processCalendar(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
+		System.out.println("Processing calendar...");
+		List<GCalendar> calendars = new ArrayList<GCalendar>();
+		for (HashMap<String, String> line : lines) {
+			try {
+				boolean monday = "1".equals(line.get(GCalendar.MONDAY));
+				boolean tuesday = "1".equals(line.get(GCalendar.TUESDAY));
+				boolean wednesday = "1".equals(line.get(GCalendar.WEDNESDAY));
+				boolean thursday = "1".equals(line.get(GCalendar.THURSDAY));
+				boolean friday = "1".equals(line.get(GCalendar.FRIDAY));
+				boolean saturday = "1".equals(line.get(GCalendar.SATURDAY));
+				boolean sunday = "1".equals(line.get(GCalendar.SUNDAY));
+				int start_date = Integer.parseInt(line.get(GCalendar.START_DATE));
+				int end_date = Integer.parseInt(line.get(GCalendar.END_DATE));
+				GCalendar gCalendar = new GCalendar(line.get(GCalendar.SERVICE_ID), monday, tuesday, wednesday, thursday, friday, saturday, sunday, start_date,
+						end_date);
+				if (agencyTools.excludeCalendar(gCalendar)) {
+					continue; // ignore this service
+				}
+				calendars.add(gCalendar);
+			} catch (Exception e) {
+				System.out.println("Error while processing: " + line);
+				e.printStackTrace();
+				System.exit(-1);
+			}
+		}
+		System.out.println("Processing calendar... DONE (" + calendars.size() + " extracted)");
+		return calendars;
 	}
 
 	private static Map<String, GTrip> processTrips(List<HashMap<String, String>> lines, GAgencyTools agencyTools) throws IOException {
@@ -615,8 +746,6 @@ public class GReader {
 	// // // }
 	// // }
 	// // // }
-	// System.out.println("DONE in " + ((System.currentTimeMillis() - start) /
-	// 1000) + " seconds");
 	// System.exit(0);
 	// }
 
@@ -714,8 +843,8 @@ public class GReader {
 			int routeId = agencyTools.getRouteId(gRoute.getValue());
 			gRouteIdToMRouteId.put(gRoute.getValue().route_id, routeId);
 			if (!gRouteToSpec.containsKey(routeId)) {
-				gRouteToSpec.put(routeId, new GSpec(new HashMap<String, GCalendarDate>(), new HashMap<String, GStop>(), new HashMap<String, GRoute>(),
-						new HashMap<String, GTrip>(), new ArrayList<GStopTime>()));
+				gRouteToSpec.put(routeId, new GSpec(new ArrayList<GCalendar>(), new ArrayList<GCalendarDate>(), new HashMap<String, GStop>(),
+						new HashMap<String, GRoute>(), new HashMap<String, GTrip>(), new ArrayList<GStopTime>(), new HashMap<String, ArrayList<GFrequency>>()));
 				gRouteToSpec.get(routeId).tripStops = new HashMap<String, GTripStop>();
 			}
 			if (gRouteToSpec.get(routeId).routes.containsKey(gRoute.getKey())) {
@@ -763,22 +892,33 @@ public class GReader {
 			gRouteToSpec.get(routeId).tripStops.put(gTripStop.getKey(), gTripStop.getValue());
 		}
 
-		for (Entry<String, GCalendarDate> gCalendarDate : gtfs.calendarDates.entrySet()) {
-			if (!gServiceIdToMRouteId.containsKey(gCalendarDate.getValue().service_id)) {
-				// System.out.println("Trip's Route ID '"+gTripStop.getValue().route_id+"' not already present!");
+		if (gtfs.calendars != null) {
+			for (GCalendar gCalendar : gtfs.calendars) {
+				if (!gServiceIdToMRouteId.containsKey(gCalendar.service_id)) {
+					continue; // not processed now (...)
+				}
+				int routeId = gServiceIdToMRouteId.get(gCalendar.service_id);
+				if (!gRouteToSpec.containsKey(routeId)) {
+					System.out.println("Calendar's Route ID " + routeId + " not already present!");
+					System.exit(-1);
+				}
 				// System.exit(-1);
-				continue; // not processed now (...)
+				gRouteToSpec.get(routeId).calendars.add(gCalendar);
 			}
-			int routeId = gServiceIdToMRouteId.get(gCalendarDate.getValue().service_id);
-			if (!gRouteToSpec.containsKey(routeId)) {
-				System.out.println("Calendar Date's Route ID " + routeId + " not already present!");
-				System.exit(-1);
+		}
+
+		if (gtfs.calendarDates != null) {
+			for (GCalendarDate gCalendarDate : gtfs.calendarDates) {
+				if (!gServiceIdToMRouteId.containsKey(gCalendarDate.service_id)) {
+					continue; // not processed now (...)
+				}
+				int routeId = gServiceIdToMRouteId.get(gCalendarDate.service_id);
+				if (!gRouteToSpec.containsKey(routeId)) {
+					System.out.println("Calendar Date's Route ID " + routeId + " not already present!");
+					System.exit(-1);
+				}
+				gRouteToSpec.get(routeId).calendarDates.add(gCalendarDate);
 			}
-			if (gRouteToSpec.get(routeId).calendarDates.containsKey(gCalendarDate.getKey())) {
-				System.out.println("Calendar Date ID " + gCalendarDate.getValue().date + " already present!");
-				System.exit(-1);
-			}
-			gRouteToSpec.get(routeId).calendarDates.put(gCalendarDate.getKey(), gCalendarDate.getValue());
 		}
 
 		for (GStopTime gStopTime : gtfs.stopTimes) {

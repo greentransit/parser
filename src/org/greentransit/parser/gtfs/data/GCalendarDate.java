@@ -8,13 +8,13 @@ public class GCalendarDate {
 	public String service_id;
 
 	public static final String DATE = "date";
-	public String date;
+	public int date; // YYYYMMDD
 
 	public static final String EXCEPTION_DATE = "exception_type";
-	public String exception_type;
+	public GCalendarDatesExceptionType exception_type;
 
-	/** Creates a Route with its required fields. */
-	public GCalendarDate(String service_id, String date, String exception_type) {
+	/** Creates a Calendar Date with its required fields. */
+	public GCalendarDate(String service_id, int date, GCalendarDatesExceptionType exception_type) {
 		this.service_id = service_id;
 		this.date = date;
 		this.exception_type = exception_type;
@@ -29,4 +29,7 @@ public class GCalendarDate {
 				.toString();
 	}
 
+	public String getUID() {
+		return this.date + this.service_id;
+	}
 }

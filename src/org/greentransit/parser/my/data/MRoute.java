@@ -1,12 +1,13 @@
 package org.greentransit.parser.my.data;
 
+import org.apache.commons.lang3.StringUtils;
 
 public class MRoute implements Comparable<MRoute> {
 
 	public int id;
 	public String shortName;
 	public String longName;
-	
+
 	public String color;
 	public String textColor;
 
@@ -42,25 +43,19 @@ public class MRoute implements Comparable<MRoute> {
 		// sort by route id
 		return id - otherRoute.id;
 	}
-	
+
 	@Override
 	public boolean equals(Object obj) {
 		MRoute o = (MRoute) obj;
 		if (this.id != o.id) {
 			return false;
 		}
-		if (!this.shortName.equals(o.shortName)) {
+		if (!StringUtils.equals(this.shortName, o.shortName)) {
 			return false;
 		}
-		if (!this.longName.equals(o.longName)) {
+		if (!StringUtils.equals(this.longName, o.longName)) {
 			return false;
 		}
-//		if (!this.color.equals(o.color)) {
-//			return false;
-//		}
-//		if (!this.textColor.equals(o.textColor)) {
-//			return false;
-//		}
 		return true;
 	}
 }

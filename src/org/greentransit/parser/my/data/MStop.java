@@ -22,13 +22,17 @@ public class MStop implements Comparable<MStop> {
 
 	@Override
 	public String toString() {
-		return new StringBuilder() //
-				/* .append('\'') */.append(id)/* .append('\'') */.append(',') // ID
-				.append('\'').append(code == null ? "" : code).append('\'').append(',') // code
-				.append('\'').append(MSpec.escape(name)).append('\'').append(',') // name
-				.append(lat).append(',') // lat
-				.append(lng) // lng
-				.toString();
+		StringBuilder sb = new StringBuilder(); //
+		sb/* .append('\'') */.append(id)/* .append('\'') */; // ID
+		sb.append(','); //
+		sb.append('\'').append(code == null ? "" : code).append('\'');// code
+		sb.append(','); //
+		sb.append('\'').append(MSpec.escape(name)).append('\''); // name
+		sb.append(','); //
+		sb.append(lat); // lat
+		sb.append(','); //
+		sb.append(lng); // lng
+		return sb.toString();
 	}
 
 	@Override
