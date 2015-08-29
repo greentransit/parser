@@ -7,8 +7,8 @@ public class AllV1 {
 	public static final String GTFS_DIR = "GTFS";
 	public static final String DEST_DIR = "output";
 
-	public static final String[] STM_BUS = new String[] { GTFS_DIR + "/CA_MONTREAL_STM/gtfs_stm.zip", DEST_DIR, "ca_mtl_stm_bus_", "true", "false" };
-	public static final String[] STM_SUBWAY = new String[] { GTFS_DIR + "/CA_MONTREAL_STM/gtfs_stm.zip", DEST_DIR, "ca_mtl_stm_subway_", "true", "false" };
+	public static final String[] STM_BUS = new String[] { GTFS_DIR + "/CA_MONTREAL_STM/gtfs_stm-150831.zip", DEST_DIR, "ca_mtl_stm_bus_", "true", "false" };
+	public static final String[] STM_SUBWAY = new String[] { GTFS_DIR + "/CA_MONTREAL_STM/gtfs_stm-150831.zip", DEST_DIR, "ca_mtl_stm_subway_", "true", "true" };
 
 	public static void main(String[] args) {
 		System.out.println("Generating all data...");
