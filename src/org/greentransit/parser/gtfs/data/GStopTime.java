@@ -34,6 +34,10 @@ public class GStopTime {
 		this.stop_sequence = stop_sequence;
 	}
 
+	public static String getUID(String trip_uid, String stop_id, int stop_sequence) {
+		return stop_id + "-" + stop_sequence + "-" + trip_uid;
+	}
+
 	@Override
 	public String toString() {
 		return new StringBuilder() //

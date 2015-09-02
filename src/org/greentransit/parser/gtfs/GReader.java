@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -325,18 +326,41 @@ public class GReader {
 				Calendar stopTimeCal = Calendar.getInstance();
 				long frequencyStartInMs = -1l;
 				long frequencyEndInMs = -1l;
+				ArrayList<GStopTime> tripStopTimes = new ArrayList<GStopTime>();
+				HashMap<String, Integer> gStopTimeIncInSec = new HashMap<String, Integer>();
+				Integer previousStopTimeInSec = null;
 				for (GStopTime gStopTime : gtfs.stopTimes) {
 					try {
 						if (!gStopTime.trip_id.equals(tripId)) {
 							continue;
 						}
+						tripStopTimes.add(gStopTime);
+						String uid = GStopTime.getUID(gStopTime.trip_id, gStopTime.stop_id, gStopTime.stop_sequence);
+						if (gStopTimeIncInSec.containsKey(uid)) {
+							System.out.printf("\nstop time UID '%s' already in list with value '%s'!\n", uid, gStopTimeIncInSec.get(uid));
+							System.exit(-1);
+						}
 						String departureTime = gStopTime.departure_time;
 						stopTimeCal.setTime(gDateFormat.parse(departureTime));
-						for (GFrequency gFrequency : tripFrequencies) {
-							frequencyStartInMs = gDateFormat.parse(gFrequency.start_time).getTime();
-							frequencyEndInMs = gDateFormat.parse(gFrequency.end_time).getTime();
-							while (stopTimeCal.getTimeInMillis() >= frequencyStartInMs && stopTimeCal.getTimeInMillis() < frequencyEndInMs) {
-								stopTimeCal.add(Calendar.SECOND, gFrequency.headway_secs);
+						int stopTimeInSec = (int) TimeUnit.MILLISECONDS.toSeconds(stopTimeCal.getTimeInMillis());
+						gStopTimeIncInSec.put(uid, previousStopTimeInSec == null ? 0 : stopTimeInSec - previousStopTimeInSec);
+						previousStopTimeInSec = stopTimeInSec;
+					} catch (Exception e) {
+						System.out.printf("\nError while generating stop increments for '%s'!\n", gStopTime);
+						e.printStackTrace();
+						System.exit(-1);
+					}
+				}
+				for (GFrequency gFrequency : tripFrequencies) {
+					try {
+						frequencyStartInMs = gDateFormat.parse(gFrequency.start_time).getTime();
+						frequencyEndInMs = gDateFormat.parse(gFrequency.end_time).getTime();
+						long firstStopTimeInMs = frequencyStartInMs;
+						while (firstStopTimeInMs >= frequencyStartInMs && firstStopTimeInMs <= frequencyEndInMs) {
+							stopTimeCal.setTimeInMillis(firstStopTimeInMs);
+							for (GStopTime gStopTime : tripStopTimes) {
+								String uid = GStopTime.getUID(gStopTime.trip_id, gStopTime.stop_id, gStopTime.stop_sequence);
+								stopTimeCal.add(Calendar.SECOND, gStopTimeIncInSec.get(uid));
 								String newDepartureTimeS = gDateFormat.format(stopTimeCal.getTime());
 								if (stopTimeCal.get(Calendar.DAY_OF_YEAR) > 1) {
 									int indexOf = newDepartureTimeS.indexOf(":");
@@ -346,9 +370,10 @@ public class GReader {
 								GStopTime newGStopTime = new GStopTime(tripId, newDepartureTimeS, gStopTime.stop_id, gStopTime.stop_sequence);
 								newGStopTimes.add(newGStopTime);
 							}
+							firstStopTimeInMs += TimeUnit.SECONDS.toMillis(gFrequency.headway_secs);
 						}
 					} catch (Exception e) {
-						System.out.printf("\nError while generating stop times for '%s'!\n", gStopTime);
+						System.out.printf("\nError while generating stop times for frequency '%s'!\n", gFrequency);
 						e.printStackTrace();
 						System.exit(-1);
 					}
