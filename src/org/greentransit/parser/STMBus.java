@@ -23,7 +23,7 @@ public class STMBus implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null;
 	public static final String ROUTE_TYPE_FILTER = "3"; // bus only
-	public static final String SERVICE_ID_FILTER = "15N";
+	public static final String SERVICE_ID_FILTER = "17M";
 	public static final String STOP_ID_FILTER = null;
 	public static final int THREAD_POOL_SIZE = 4;
 	public static final List<String> EXCLUDED_ROUTE_IDS = null;
