@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.greentransit.parser.gtfs.GAgencyTools;
@@ -24,7 +25,7 @@ public class STMSubway implements GAgencyTools {
 
 	public static final String ROUTE_ID_FILTER = null;
 	public static final String ROUTE_TYPE_FILTER = "1"; // subway only
-	public static final String SERVICE_ID_FILTER = "17M";
+	public static final String SERVICE_ID_FILTER = "17S";
 	public static final String STOP_ID_FILTER = null;
 	public static final int THREAD_POOL_SIZE = 4;
 
@@ -174,9 +175,54 @@ public class STMSubway implements GAgencyTools {
 		return false;
 	}
 
+	private static final Pattern DIGITS = Pattern.compile("[\\d]+");
+
 	@Override
 	public int getStopId(GStop gStop) {
-		return Integer.valueOf(gStop.stop_id);
+		if (!isDigitsOnly(gStop.stop_id)) {
+			Matcher matcher = DIGITS.matcher(gStop.stop_id);
+			if (matcher.find()) {
+				int digits = Integer.parseInt(matcher.group());
+				if (gStop.stop_id.endsWith("S")) {
+					return digits + 1900000;
+				}
+				if (gStop.stop_id.endsWith("-01")) {
+					return digits + 9100000;
+				} else if (gStop.stop_id.endsWith("-02")) {
+					return digits + 9200000;
+				} else if (gStop.stop_id.endsWith("-03")) {
+					return digits + 9300000;
+				} else if (gStop.stop_id.endsWith("-04")) {
+					return digits + 9400000;
+				} else if (gStop.stop_id.endsWith("-05")) {
+					return digits + 9500000;
+				} else if (gStop.stop_id.endsWith("-06")) {
+					return digits + 9600000;
+				} else if (gStop.stop_id.endsWith("-07")) {
+					return digits + 9700000;
+				} else if (gStop.stop_id.endsWith("-08")) {
+					return digits + 9800000;
+				}
+			}
+		}
+		try {
+			return Integer.parseInt(gStop.stop_id);
+		} catch (Exception e) {
+			System.out.printf("\nError while extracting stop ID from %s!\n", gStop);
+			e.printStackTrace();
+			System.exit(-1);
+			return -1;
+		}
+	}
+
+	public static boolean isDigitsOnly(CharSequence str) {
+		final int len = str.length();
+		for (int i = 0; i < len; i++) {
+			if (!Character.isDigit(str.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	@Override
